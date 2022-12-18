@@ -1,0 +1,13 @@
+name = "Probker"
+uuid = "d0ae23fd-a9a3-4625-bb1d-fa5e90ff7a39"
+authors = ["Christian Brunbjerg Jespersen <brunbjerg1423@live.dk> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1.7"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
