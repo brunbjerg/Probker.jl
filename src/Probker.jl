@@ -32,8 +32,8 @@ function Simulate(game::Game)
     split_by_player = zeros(Float64, game.players)
     for _ = 1:game.simulations
         #& player cards and shared cards should be refactored. Into a struct
-        player_cards, shared_cards = Sample(game::Game)
-        player_winners = Determine_Win(player_cards, shared_cards)
+        hands = Sample(game::Game)
+        player_winners = Determine_Win(hands)
         if length(player_winners) == 1
             wins_by_player[player_winners] .+= 1
         else
@@ -55,17 +55,16 @@ function Sample(game::Game)
             cards[i] = sampled_cards[j]
         end
     end
-    return cards[1:game.players*2], cards[game.players*2+1:end]
+    return Cards_To_Hands(cards[1:game.players*2], cards[game.players*2+1:end])
 end
 
-function Determine_Win(player_cards, shared_cards)
-    hands_for_each_player = Cards_To_Hands(player_cards, shared_cards)
+function Determine_Win(hands::Hands)
     determine_hand = (Straight_Flush, Four_Kind, Full_House, Flush, Straight, Three_Kind, Two_Pairs, Two_Kind, High_Card)
     for fun in determine_hand
-        if fun(hands_for_each_player) == "non-exsistent"
+        if fun(hands) == "non-exsistent"
             continue
         else
-            return fun(hands_for_each_player)
+            return fun(hands)
         end
     end
 end 
@@ -110,10 +109,10 @@ function High_Card(hands::Hands)
 end
 
 function Two_Kind(hands::Hands)
-    if Check_For_Two_Kind(hands_for_each_player)
+    if Check_For_Two_Kind(hands.hands)
         return "non-exsistent"
     end
-    player_scores = zeros(Int64, length(hands_for_each_player[:,1]), 7)
+    player_scores = zeros(Int64, hands.players, 7)
     for player = 1:hands.players
         for card = 1:hands.cards
             if card != 1 && hands.sorted_mod_hands[player, card] == hands.sorted_mod_hands[player, card - 1]
@@ -131,7 +130,7 @@ function Two_Kind(hands::Hands)
     sorted_score = sort(player_scores, dims = 2, rev = true)
     summed_score = sum(sorted_score[:, 1:5], dims = 2)
     vector_summed_score = []
-    for player = 1:length(hands_for_each_player[:,1])
+    for player = 1:hands.players
         push!(vector_summed_score,summed_score[player, 1])
     end
     best_hand = findmax(vector_summed_score)[1]
@@ -150,7 +149,7 @@ function Check_For_Two_Kind(hands_for_each_player)
 end
 
 function Two_Pairs(hands::Hands)
-    if Check_For_Two_Pairs(hands_for_each_player)
+    if Check_For_Two_Pairs(hands.hands)
         return "non-exsistent"
     end
     player_scores = zeros(Int64, hands.players, 7)
@@ -174,29 +173,29 @@ function Two_Pairs(hands::Hands)
                 player_scores[player, card + 1] = pair_weight*hands.sorted_mod_hands[player, card ]
                 two_pairs_checker[player] += 1            
             else
-                player_scores[player, card] = card_weight[card] * hands.sorted_mod_hands[player, card]
+                player_scores[player, card] = hands.weights[card] * hands.sorted_mod_hands[player, card]
             end
         end    
     end
 
     sorted_scores = sort(player_scores, dims = 2, rev = true)
-    for player in players
+    for player in hands.players
         pair_count = 0
         first_card_of_pair = 0
-        for card in setdiff!(collect(cards), 7)
+        for card in setdiff!(collect(1:hands.cards), 7)
             if sorted_scores[player, card] == sorted_scores[player, card + 1]
                 pair_count += 1
                 first_card_of_pair = card
             end
         end
         if pair_count == 1
-            sorted_scores[player,first_card_of_pair] = sorted_scores[player,first_card_of_pair]/15
-            sorted_scores[player,first_card_of_pair + 1] = sorted_scores[player,first_card_of_pair + 1]/15
+            sorted_scores[player,first_card_of_pair] = sorted_scores[player, first_card_of_pair]/15
+            sorted_scores[player,first_card_of_pair + 1] = sorted_scores[player, first_card_of_pair + 1]/15
         end
     end
     summed_scores = sum(sorted_scores[:,1:5], dims = 2)
     vector_summed_scores = []
-    for player in players
+    for player in hands.players
         push!(vector_summed_scores, summed_scores[player])
     end
     best_hand = findmax(vector_summed_scores)[1]
@@ -240,7 +239,7 @@ function Three_Kind(hands::Hands)
     sorted_scores = sort(player_scores, dims = 2, rev = true)
     summed_scores = sum(sorted_scores[:,1:5], dims = 2)
     vector_summed_scores = []
-    for player in players
+    for player in hands.players
         push!(vector_summed_scores, summed_scores[player])
     end
     best_hand = findmax(vector_summed_scores)[1]
@@ -369,7 +368,7 @@ end
 function Four_Kind(hands::Hands)
     card_weight = [225, 15, 1]
     four_of_a_kind_checker = 0
-    player_score = zeros(Int64, length(players), length(cards))
+    player_score = zeros(Int64, hands.players, hands.cards)
     for player in hands.players
         for i = 1:13
             find_n_kinds = findall(x->x ==i, hands.sorted_mod_hands[player, :])
@@ -396,6 +395,7 @@ function Four_Kind(hands::Hands)
 end
 
 function Straight_Flush(hands::Hands)  
+    straight_flush_checker = 0
     add_to_each_card = [0, 1, 2, 3, 4, 5, 6]
     player_score = zeros(Int64, hands.players)
     for player in hands.players
