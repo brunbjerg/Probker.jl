@@ -1,138 +1,53 @@
 module Probker
-
 using StatsBase, Random
 
-#& Refactoring this will be so satisfying
-
-struct game 
-    number_of_players::Int64
-    player_cards::Vector{Int64}
-    flop_cards::Vector{Int64}
-    turn_card::Int64
-    river_card::Int64 
-    fold_pattern::Matrix{Int64}
-    card_pile::Vector{Int64}
-    number_of_simulations::Int64
+struct Game
+    players::Int64
+    cards::Vector{Int64}
+    pile::Vector{Int64}
+    samples::Int64
+    simulations::Int64
+    Game(players, cards, simulations) = 
+    new(players, cards, setdiff(collect(1:52), cards), sum(x -> x == 0, cards), simulations) 
 end
 
-# const specific_game = game(2, [1,2,3,4], [5,6,7], 0, 0, [0 0], collect(8:52), 1000)
-
-export Probker_Main
 export Simulate
 export Determine_Win
-export Sample_Cards_Given_Game_Stage, Sample_From_Flop, Sample_From_Preflop, Sample_From_Turn, Sample_From_River, Sample_From_Start
+export Sample
 export High_Card, Two_Of_A_Kind, Two_Pairs, Three_Of_A_Kind, Straight, Flush, Full_House, Four_Of_A_Kind, Straight_Flush
 export Card_Duplication
-export game
-export calling_probker
+export Game
 
-function Probker_Main(game)
-    return Simulate(game)
-end
 
-function Simulate(game)
-    wins_by_player = zeros(Int64, game.number_of_players )
-    split_by_player = zeros(Float64, game.number_of_players)
-    for _ = 1:game.number_of_simulations
-        player_cards, shared_cards = Sample_Cards_Given_Game_Stage(game)
+function Simulate(game::Game)
+    wins_by_player = zeros(Int64, game.players )
+    split_by_player = zeros(Float64, game.players)
+    for _ = 1:game.simulations
+        #& player cards and shared cards should be refactored. Into a struct
+        player_cards, shared_cards = Sample(game::Game)
         player_winners = Determine_Win(player_cards, shared_cards)
         if length(player_winners) == 1
             wins_by_player[player_winners] .+= 1
         else
-            number_of_players_in_split = 1/length(player_winners)
-            split_by_player[player_winners] .+= number_of_players_in_split
+            players_in_split = 1/length(player_winners)
+            split_by_player[player_winners] .+= players_in_split
         end
     end
-    return wins_by_player/game.number_of_simulations#, split_by_player/game.number_of_simulations
+    return wins_by_player/game.simulations, split_by_player/game.simulations
 end
 
-function Sample_Cards_Given_Game_Stage(game)
-    try
-        if Card_Present(game.river_card)
-            return Sample_From_River(game)
-        elseif Card_Present(game.turn_card)
-            return Sample_From_Turn(game)
-        elseif Card_Present(game.flop_cards)
-            return Sample_From_Flop(game)
-        elseif Card_Present(game.player_cards) 
-            return Sample_From_Preflop(game)
-        else
-            return Sample_From_Start(game)
-        end
-    finally
-        if Card_Duplication(game)
-            println("card duplication")
-            return "card_duplication"
+
+function Sample(game::Game)
+    j = 0
+    sampled_cards = sample(game.pile, game.samples, replace = false)
+    cards = copy(game.cards)
+    for i in eachindex(game.cards)
+        if cards[i] == 0
+            j += 1
+            cards[i] = sampled_cards[j]
         end
     end
-end
-
-function Simulate_Hidden_Cards(game, card_pile)
-    player_cards = deepcopy(game.player_cards)
-    index_of_hidden_cards = findall(x->x == 0, player_cards)
-    hidden_cards = sample(card_pile, length(index_of_hidden_cards), replace = false)
-    player_cards[index_of_hidden_cards] .= hidden_cards
-    setdiff!(card_pile, hidden_cards)
-    return player_cards, card_pile
-end
-
-function Sample_From_River(game)
-    card_pile = deepcopy(game.card_pile)
-    player_cards, card_pile = Simulate_Hidden_Cards(game, card_pile)
-    shared_cards = [game.flop_cards ; game.turn_card ; game.river_card]
-    return player_cards, shared_cards
-end
-
-function Sample_From_Turn(game)
-    card_pile = deepcopy(game.card_pile)
-    player_cards, card_pile = Simulate_Hidden_Cards(game, card_pile)
-    river_card, card_pile = Sample_And_Update_Card_Pile(1, card_pile)
-    shared_cards = [game.flop_cards ; game.turn_card ; river_card]
-    return player_cards, shared_cards
-end
-
-function Sample_From_Flop(game)
-    card_pile = deepcopy(game.card_pile)
-    player_cards, card_pile = Simulate_Hidden_Cards(game, card_pile)
-    turn_and_river_cards,  card_pile = Sample_And_Update_Card_Pile(2, card_pile)
-    shared_cards = [game.flop_cards ; turn_and_river_cards]
-    return player_cards, shared_cards
-end
-
-function Sample_From_Preflop(game)
-    card_pile = deepcopy(game.card_pile)
-    player_cards, card_pile = Simulate_Hidden_Cards(game,card_pile)
-    shared_cards, card_pile = Sample_And_Update_Card_Pile(5, card_pile)
-    return player_cards, shared_cards
-end
-
-function Sample_From_Start(game)
-    card_pile = deepcopy(game.card_pile)
-    all_cards, card_pile = Sample_And_Update_Card_Pile(5 + 2*game.number_of_players, card_pile)
-    return all_cards[1:2*game.number_of_players], all_cards[2*game.number_of_players+1:end]
-end
-
-function Sample_And_Update_Card_Pile(number_of_samples, card_pile)
-    cards = sample(card_pile, number_of_samples, replace = false)
-    setdiff!(card_pile, cards)
-    return cards, card_pile
-end
-
-function Card_Duplication(game)
-    all_cards = [game.player_cards; game.flop_cards; game.turn_card; game.river_card; game.card_pile]
-    filter!(!iszero, all_cards)
-    if length(all_cards) == length(unique(all_cards))
-        return false 
-    end
-    return true
-end
-
-function Card_Present(card)
-    if typeof(card) == Vector{Int64}
-        return card != [0]
-    else
-        return card != 0
-    end
+    return cards[1:game.players*2], cards[game.players*2+1:end]
 end
 
 function Determine_Win(player_cards, shared_cards)
@@ -160,7 +75,6 @@ function Cards_To_Hands(player_cards, shared_cards)
     end
     return hands_for_each_player
 end
-
 
 function High_Card(hands_for_each_player)
     modulus_13_hands = hands_for_each_player .% 13
@@ -576,4 +490,3 @@ function Card_To_Kind(card)
 end
 
 end # module
-

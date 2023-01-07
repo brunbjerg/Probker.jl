@@ -1,5 +1,15 @@
-using Test, Coverage, Random
+using Test, Coverage, Random, StatsBase
 using Probker
+
+#~ Look at this later!
+function Card_Duplication(game)
+    all_cards = [game.player_cards; game.flop_cards; game.turn_card; game.river_card; game.card_pile]
+    filter!(!iszero, all_cards)
+    if length(all_cards) == length(unique(all_cards))
+        return false 
+    end
+    return true
+end
 
 @testset "Test_Sample_Cards_Given_Game_Stage      " begin
     Random.seed!(43221)
@@ -7,7 +17,7 @@ using Probker
     setuped_cards = Sample_Cards_Given_Game_Stage(test_game_preflop)
     @test issubset(setuped_cards[1] , collect(1:52))
     @test issubset(setuped_cards[2] , setdiff(collect(1:52), setuped_cards[1] ))
-     
+    
     test_game_flop = game(2, [13, 14, 15, 1], [0], 0, 0, [0 0], setdiff(collect(1:52), [13, 14, 15, 1]),10000)
     setuped_cards = Sample_Cards_Given_Game_Stage(test_game_flop)
     @test setuped_cards[1] == [13, 14, 15, 1]
@@ -17,7 +27,7 @@ using Probker
     setuped_cards = Sample_Cards_Given_Game_Stage(test_game_turn)
     @test setuped_cards[1] == [13, 14, 15, 1]
     @test setuped_cards[2][1:3] == [2, 5, 52]
-    @test issubset(setuped_cards[2][4:5] , setdiff(collect(1:52), setuped_cards[1], setuped_cards[2][1:3]  ))
+    @test issubset(setuped_cards[2][4:5], setdiff(collect(1:52), setuped_cards[1], setuped_cards[2][1:3]  ))
 
     test_game_river = game(2, [13, 14, 15, 1], [2, 5, 52], 26, 0, [0 0], setdiff(collect(1:52), [13, 14, 15, 1], [2, 5, 52], 26),10000)
     setuped_cards = Sample_Cards_Given_Game_Stage(test_game_river)
@@ -99,6 +109,20 @@ end
     player_cards_8 = [13, 9, 26, 40]
     shared_cards_8 = [23, 8, 32, 18, 41]
 
+
+    player_cards_9 = [13, 26, 8, 27]
+    shared_cards_9 = [3, 7, 9, 15, 11]
+
+
+
+    player_cards_10 = [1, 5, 18, 15]
+    shared_cards_10 = [3, 7, 9, 15, 11]
+
+
+    @test Probker.Determine_Win(player_cards_10, shared_cards_10) == [1]
+    @test Probker.Determine_Win(player_cards_9, shared_cards_9) == [1]
+
+    #& The flaw could be that 
     @test Probker.Determine_Win(player_cards_1, shared_cards_1) == [1]
     @test Probker.Determine_Win(player_cards_2, shared_cards_2) == [2]
     @test Probker.Determine_Win(player_cards_3, shared_cards_3) == [2]
@@ -109,8 +133,6 @@ end
     @test Probker.Determine_Win(player_cards_8, shared_cards_8) == [1]
     
 end
-
-
 
 @testset "Test_High_Card        " begin
     hands_1 = [13  2 4 17 19 31 34;
@@ -130,7 +152,7 @@ end
     16  9  4 17 19 31 34]   
     @test High_Card(hands_1) == [1]
     @test High_Card(hands_2) == [2]
-    @test High_Card(hands_3) == [1,2]
+    @test High_Card(hands_3) == [1, 2]
     @test High_Card(hands_4) == [4] 
 end
 

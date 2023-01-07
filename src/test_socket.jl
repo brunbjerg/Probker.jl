@@ -1,20 +1,47 @@
 using SimpleWebsockets
+using Probker
+using JSON
+
+function Extract_Game_And_Load_Into_Struct(game_dict)
+    extracted_game = game(
+        game_dict["number_of_players"],
+        game_dict["player_cards"],
+        game_dict["shared_cards"][1] == 0 ? [0] : game_dict["shared_cards"][1:3],
+        game_dict["shared_cards"][4],
+        game_dict["shared_cards"][5],
+        [0 0],
+        collect(setdiff(1:52,   game_dict["player_cards"],
+                                game_dict["shared_cards"][1:3],
+                                game_dict["shared_cards"][4],
+                                game_dict["shared_cards"][5])),
+        game_dict["simulations"])
+    return extracted_game
+end
 
 server = WebsocketServer()
-
 listen(server, :client) do ws   
     listen(ws, :message) do message
+        println(@__LINE__)
         try
-            comm = Meta.parse(message)
-            result = Base.eval(@__MODULE__, comm)
-            send(ws, string(result))
+            println("no error here!")
+            game_dict = JSON.parse(message)
+            game = Extract_Game_And_Load_Into_Struct(game_dict)
+            println(game)
+            probabilities = Simulate(game)
+            probabilities_JSON = JSON.json(probabilities)
+            send(ws, probabilities_JSON)
+            flush(io)
         catch err
-            @error err
+            @info err          
+            flush(io)
             send(ws, "Could not run command")
+            flush(io)
         end
     end
 end
+
 function echo(val)
     return val
 end
+
 @async serve(server, 8081)
