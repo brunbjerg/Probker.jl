@@ -24,8 +24,9 @@ export Determine_Win
 export Sample
 export High_Card, Two_Kind, Two_Pairs, Three_Kind, Straight, Flush, Full_House, Four_Kind, Straight_Flush
 export Card_Duplication
+export Cards_To_Hands
 export Game
-
+export Hands
 
 function Simulate(game::Game)
     wins_by_player = zeros(Int64, game.players)
@@ -61,7 +62,7 @@ end
 function Determine_Win(hands::Hands)
     determine_hand = (Straight_Flush, Four_Kind, Full_House, Flush, Straight, Three_Kind, Two_Pairs, Two_Kind, High_Card)
     for fun in determine_hand
-        if fun(hands) == "non-exsistent"
+        if fun(hands) == "non-existent"
             continue
         else
             return fun(hands)
@@ -110,7 +111,7 @@ end
 
 function Two_Kind(hands::Hands)
     if Check_For_Two_Kind(hands.hands)
-        return "non-exsistent"
+        return "non-existent"
     end
     player_scores = zeros(Int64, hands.players, 7)
     for player = 1:hands.players
@@ -149,8 +150,8 @@ function Check_For_Two_Kind(hands_for_each_player)
 end
 
 function Two_Pairs(hands::Hands)
-    if Check_For_Two_Pairs(hands.hands)
-        return "non-exsistent"
+    if Check_Two_Pairs(hands.hands)
+        return "non-existent"
     end
     player_scores = zeros(Int64, hands.players, 7)
     two_pairs_checker = zeros(Int64, hands.players)
@@ -203,16 +204,6 @@ function Two_Pairs(hands::Hands)
     return player_winners
 end
 
-function Check_For_Two_Pairs(hands_for_each_player)
-    mod_hands = hands_for_each_player .% 13
-    for i = 1:length(hands_for_each_player[:,1])
-        if 7 == 2 + length(unique(mod_hands[i,:]))
-            return false
-        end
-    end
-    return true
-end
-
 function Three_Kind(hands::Hands)
     player_scores = zeros(Int64, hands.players, hands.cards)
     exsistent_three_kind = 0
@@ -234,7 +225,7 @@ function Three_Kind(hands::Hands)
         end
     end
     if exsistent_three_kind == 0
-        return "non-exsistent"
+        return "non-existent"
     end
     sorted_scores = sort(player_scores, dims = 2, rev = true)
     summed_scores = sum(sorted_scores[:,1:5], dims = 2)
@@ -279,7 +270,7 @@ function Straight(hands::Hands)
         end
     end
     if straight_check == 0 
-        return "non-exsistent"
+        return "non-existent"
     end
     best_hand = findmax(player_scores)[1]
     player_winners = findall(x->x == best_hand, player_scores)
@@ -313,7 +304,7 @@ function Flush(hands::Hands)
         end
     end
     if flush_checker == 0
-        return "non-exsistent"
+        return "non-existent"
     end
     sorted_scores_with_suits = sort(player_scores_with_suits, dims = 2, rev = true)
     weighted_player_scores_with_suits = zeros(Int64, size(sorted_scores_with_suits)[1], size(sorted_scores_with_suits)[2], size(sorted_scores_with_suits)[3])
@@ -354,7 +345,7 @@ function Full_House(hands::Hands)
         end
     end
     if full_house_checker == 0
-        return "non-exsistent"
+        return "non-existent"
     end
     best_hand = findmax(player_score)[1]
     player_winners = findall(x->x == best_hand, player_score)
@@ -381,7 +372,7 @@ function Four_Kind(hands::Hands)
         end
     end
     if four_of_a_kind_checker == 0
-        return "non-exsistent"
+        return "non-existent"
     end
     sorted_player_scores = sort(player_score, dims = 2, rev = true)
     summed_player_scores = sum(sorted_player_scores[:,1:5], dims = 2)
@@ -400,7 +391,7 @@ function Straight_Flush(hands::Hands)
     player_score = zeros(Int64, hands.players)
     for player in hands.players
         player_hand_original = hands.hands[player, :]
-        flush, suit, indices = Check_For_Flush(player_hand_original) 
+        flush, suit, indices = Check_Flush(player_hand_original) 
         if flush
             sorted_flush_hand = sort(player_hand_original[indices], rev = true)
             straight_adjusted_hand = add_to_each_card[1:length(indices)] .+ sorted_flush_hand
@@ -418,7 +409,7 @@ function Straight_Flush(hands::Hands)
     end
     
     if straight_flush_checker == 0
-        return "non-exsistent"
+        return "non-existent"
     end
     
     best_hand = findmax(player_score)[1]
@@ -427,7 +418,7 @@ function Straight_Flush(hands::Hands)
     return player_winners
 end
 
-function Check_For_Flush(player_hand)
+function Check_Flush(player_hand)
     if length(findall(x->x in 1:13, player_hand)) >= 5
         return true, 1, findall(x->x in 1:13, player_hand)
     elseif length(findall(x->x in 14:26, player_hand)) >= 5
@@ -447,5 +438,18 @@ function Card_To_Kind(card)
     end
     return kind
 end
+
+function Check_Two_Pairs(hands_for_each_player)
+    mod_hands = hands_for_each_player .% 13
+    for i = 1:length(hands_for_each_player[:,1])
+        if 7 == 2 + length(unique(mod_hands[i,:]))
+            return false
+        end
+    end
+    return true
+end
+
+
+
 
 end # module

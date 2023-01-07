@@ -91,7 +91,8 @@ end
 end
 
 
-@testset "Test_Probker.Determine_Win    " begin
+@testset "Test_Probker.Determine_Win" begin
+    Cards_To_Hands(player_cards, shared_cards)
     player_cards_1 = [9, 10, 13, 26]
     shared_cards_1 = [6, 7, 8, 39, 52]
     player_cards_2 = [9, 10, 13, 26]
@@ -109,11 +110,8 @@ end
     player_cards_8 = [13, 9, 26, 40]
     shared_cards_8 = [23, 8, 32, 18, 41]
 
-
     player_cards_9 = [13, 26, 8, 27]
     shared_cards_9 = [3, 7, 9, 15, 11]
-
-
 
     player_cards_10 = [1, 5, 18, 15]
     shared_cards_10 = [3, 7, 9, 15, 11]
