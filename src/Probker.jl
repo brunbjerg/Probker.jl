@@ -17,6 +17,14 @@ struct Hands
     hands::Matrix{Int}
     sorted_mod_hands::Matrix{Int}
     weights::Vector{Int}
+    function Create_Mod_Hands(hands)
+        mod_hands = hands .% 13
+        mod_hands[mod_hands .== 0] .= 13
+        sorted_hands = sort(mod_hands, dims = 2, rev = true)
+        return sorted_hands
+    end
+    weights = [64, 32, 16, 8, 4, 2, 1]
+    Hands(hands) = new(size(hands, 1), size(hands, 2), hands, Create_Mod_Hands(hands), [64, 32, 16, 8, 4, 2, 1])
 end
 
 export Simulate
@@ -45,7 +53,6 @@ function Simulate(game::Game)
     return wins_by_player/game.simulations, split_by_player/game.simulations
 end
 
-
 function Sample(game::Game)
     j = 0
     sampled_cards = sample(game.pile, game.samples, replace = false)
@@ -65,6 +72,7 @@ function Determine_Win(hands::Hands)
         if fun(hands) == "non-existent"
             continue
         else
+            println(fun)
             return fun(hands)
         end
     end
@@ -110,7 +118,7 @@ function High_Card(hands::Hands)
 end
 
 function Two_Kind(hands::Hands)
-    if Check_For_Two_Kind(hands.hands)
+    if Check_Two_Kind(hands.hands)
         return "non-existent"
     end
     player_scores = zeros(Int64, hands.players, 7)
@@ -137,16 +145,6 @@ function Two_Kind(hands::Hands)
     best_hand = findmax(vector_summed_score)[1]
     winner_players = findall(x->x == best_hand, vector_summed_score)   
     return winner_players 
-end
-
-function Check_For_Two_Kind(hands_for_each_player)
-    mod_hands = hands_for_each_player .% 13
-    for i = 1:length(hands_for_each_player[:,1])
-        if length(mod_hands[i,:]) == length(unique(mod_hands[i,:]))
-            return true
-        end
-    end
-    return false
 end
 
 function Two_Pairs(hands::Hands)
@@ -236,16 +234,6 @@ function Three_Kind(hands::Hands)
     best_hand = findmax(vector_summed_scores)[1]
     player_winners = findall(x->x == best_hand, vector_summed_scores)
     return player_winners
-end
-
-function Checker_Three_Of_A_Kind()
-    mod_hands = hands_for_each_player .% 13
-    for i = 1:length(hands_for_each_player[:,1])
-        if mode(mod_hands[i,:]) == 3
-            return false
-        end
-    end
-    return true
 end
 
 function Straight(hands::Hands)
@@ -401,6 +389,7 @@ function Straight_Flush(hands::Hands)
                 values = findall(x->x == i, straight_and_Modulus_adjusted_hand)
                 if length(values) >= 5
                     straight_flush_checker = 1
+                    println("Here")
                     player_score[player] = straight_and_Modulus_adjusted_hand[1][1] 
                 end
             end
@@ -439,6 +428,16 @@ function Card_To_Kind(card)
     return kind
 end
 
+function Check_Two_Kind(hands_for_each_player)
+    mod_hands = hands_for_each_player .% 13
+    for i = 1:length(hands_for_each_player[:,1])
+        if length(mod_hands[i,:]) == length(unique(mod_hands[i,:]))
+            return true
+        end
+    end
+    return false
+end
+
 function Check_Two_Pairs(hands_for_each_player)
     mod_hands = hands_for_each_player .% 13
     for i = 1:length(hands_for_each_player[:,1])
@@ -449,7 +448,15 @@ function Check_Two_Pairs(hands_for_each_player)
     return true
 end
 
-
+function Check_Three_Kind()
+    mod_hands = hands_for_each_player .% 13
+    for i = 1:length(hands_for_each_player[:,1])
+        if mode(mod_hands[i,:]) == 3
+            return false
+        end
+    end
+    return true
+end
 
 
 end # module

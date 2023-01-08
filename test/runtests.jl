@@ -92,9 +92,12 @@ end
 
 
 @testset "Test_Probker.Determine_Win" begin
-    Cards_To_Hands(player_cards, shared_cards)
+
+    # royal flush vs four kind
     player_cards_1 = [9, 10, 13, 26]
     shared_cards_1 = [6, 7, 8, 39, 52]
+
+
     player_cards_2 = [9, 10, 13, 26]
     shared_cards_2 = [5, 7, 8, 39, 52]
     player_cards_3 = [9, 10, 21, 26]
@@ -109,30 +112,31 @@ end
     shared_cards_7 = [5, 32, 8, 23, 25]
     player_cards_8 = [13, 9, 26, 40]
     shared_cards_8 = [23, 8, 32, 18, 41]
-
     player_cards_9 = [13, 26, 8, 27]
     shared_cards_9 = [3, 7, 9, 15, 11]
-
     player_cards_10 = [1, 5, 18, 15]
     shared_cards_10 = [3, 7, 9, 15, 11]
 
-
-    @test Probker.Determine_Win(player_cards_10, shared_cards_10) == [1]
-    @test Probker.Determine_Win(player_cards_9, shared_cards_9) == [1]
+    
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_10, shared_cards_10)) == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_9, shared_cards_9)) == [1]
 
     #& The flaw could be that 
-    @test Probker.Determine_Win(player_cards_1, shared_cards_1) == [1]
-    @test Probker.Determine_Win(player_cards_2, shared_cards_2) == [2]
-    @test Probker.Determine_Win(player_cards_3, shared_cards_3) == [2]
-    @test Probker.Determine_Win(player_cards_4, shared_cards_4) == [1]
-    @test Probker.Determine_Win(player_cards_5, shared_cards_5) == [2]
-    @test Probker.Determine_Win(player_cards_6, shared_cards_6) == [1]
-    @test Probker.Determine_Win(player_cards_7, shared_cards_7) == [2]
-    @test Probker.Determine_Win(player_cards_8, shared_cards_8) == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_1, shared_cards_1)) == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_2, shared_cards_2)) == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_3, shared_cards_3)) == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_4, shared_cards_4)) == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_5, shared_cards_5)) == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_6, shared_cards_6)) == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_7, shared_cards_7)) == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_8, shared_cards_8)) == [1]
     
 end
 
-@testset "Test_High_Card        " begin
+#& I should correct all these tests before continuing. This means making the hands
+#& struct work for all of these.
+
+@testset "Test_High_Card" begin
     hands_1 = [13  2 4 17 19 31 34;
                12 11 4 17 19 31 34]
     hands_2 = [13  2 4 17 19 31 34;
@@ -177,7 +181,7 @@ end
     @test Two_Of_A_Kind(hands_2) == [2]
     @test Two_Of_A_Kind(hands_3) == [1, 2]
     @test Two_Of_A_Kind(hands_4) == collect(1:9)
-    @test Two_Of_A_Kind(hands_5) == "non-exsistent"
+    @test Two_Of_A_Kind(hands_5) == "non-existent"
 end
 
 @testset "Test_Two_Pairs        " begin
@@ -203,7 +207,7 @@ end
     @test Two_Pairs(hands_2) == [2]
     @test Two_Pairs(hands_3) == [1, 2]
     @test Two_Pairs(hands_4) == collect(1:9)
-    @test Two_Pairs(hands_5) == "non-exsistent"
+    @test Two_Pairs(hands_5) == "non-existent"
 end
 
 @testset "Test_Three_Of_A_Kind  " begin
@@ -228,7 +232,7 @@ end
     @test Three_Of_A_Kind(hands_1) == [1]
     @test Three_Of_A_Kind(hands_2) == [1, 2]
     @test Three_Of_A_Kind(hands_3) == [2]
-    @test Three_Of_A_Kind(hands_4) == "non-exsistent"
+    @test Three_Of_A_Kind(hands_4) == "non-existent"
     @test Three_Of_A_Kind(hands_5) == [9]
 end
 
@@ -242,7 +246,7 @@ end
     
     @test Straight(hands_1) == [1,2]
     @test Straight(hands_2) == [2]
-    @test Straight(hands_3) == "non-exsistent"
+    @test Straight(hands_3) == "non-existent"
     
 end
 
@@ -255,7 +259,7 @@ end
     5 6 3 14 15 16 43]
     @test Flush(hands_1) == [2]
     @test Flush(hands_2) == [1, 2]
-    @test Flush(hands_3) == "non-exsistent"
+    @test Flush(hands_3) == "non-existent"
     
 end
 
@@ -270,7 +274,7 @@ end
     14 28 3 18 19 7 22]
     @test Full_House(hands_1) == [2]
     @test Full_House(hands_2) == [1, 2]
-    @test Full_House(hands_3) == "non-exsistent"
+    @test Full_House(hands_3) == "non-existent"
 end
 
 @testset "Test_Four_Of_A_Kind   " begin
@@ -286,20 +290,28 @@ end
     @test Four_Of_A_Kind(hands_1) == [1]
     @test Four_Of_A_Kind(hands_2) == [2]
     @test Four_Of_A_Kind(hands_3) == [1, 2]
-    @test Four_Of_A_Kind(hands_4) == "non-exsistent"
+    @test Four_Of_A_Kind(hands_4) == "non-existent"
 end
 
 @testset "Test_Straight_Flush   " begin
-    hands_1 = [ 1  2  3  4  5  6  7;
-    5 15 18 29 42 51 31]
-    hands_2 = [ 1 2 3 4 5 6 7;
-    52 8 3 4 5 6 7]
-    hands_3 = [1  2  26 25 24 23 22;
-    13 21 26 25 24 23 22]
-    hands_4 = [1  14 27 40  2  3  4;
-    13 26 27 40  2  3  4]
+    hands_1 = Hands([ 1  2  3  4  5  6  7;
+                      5 15 18 29 42 51 31])
+
+    hands_2 = Hands([ 1 2 3 4 5 6 7;
+                     52 8 3 4 5 6 7])
+
+    hands_3 = Hands([ 1  2 26 25 24 23 22;
+                     13 21 26 25 24 23 22])
+
+    hands_4 = Hands([ 1 14 27 40  2  3  4;
+                     13 26 27 40  2  3  4])
+
     @test Straight_Flush(hands_1) == [1]
     @test Straight_Flush(hands_2) == [2]
     @test Straight_Flush(hands_3) == [1, 2]
-    @test Straight_Flush(hands_4) == "non-exsistent"
+    @test Straight_Flush(hands_4) == "non-existent"
 end;
+
+
+revise(Probker)
+
