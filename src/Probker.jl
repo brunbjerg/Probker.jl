@@ -1,5 +1,6 @@
 module Probker
-using StatsBase, Random
+using StatsBase
+using Random
 
 struct Game
     players::Int64
@@ -15,16 +16,16 @@ struct Hands
     players::Int 
     cards::Int
     hands::Matrix{Int}
-    sorted_mod_hands::Matrix{Int}
+    sorted::Matrix{Int}
     weights::Vector{Int}
     function Create_Mod_Hands(hands)
-        mod_hands = hands .% 13
-        mod_hands[mod_hands .== 0] .= 13
-        sorted_hands = sort(mod_hands, dims = 2, rev = true)
-        return sorted_hands
+        mod = hands .% 13
+        mod[mod .== 0] .= 13
+        sorted = sort(mod, dims = 2, rev = true)
+        return sorted
     end
     weights = [64, 32, 16, 8, 4, 2, 1]
-    Hands(hands) = new(size(hands, 1), size(hands, 2), hands, Create_Mod_Hands(hands), [64, 32, 16, 8, 4, 2, 1])
+    Hands(hands) = new(size(hands, 1), size(hands, 2), hands, Create_Mod_Hands(hands), weights)
 end
 
 export Simulate
@@ -37,20 +38,25 @@ export Game
 export Hands
 
 function Simulate(game::Game)
+    #& Okay we need to make this work for the 
+
     wins_by_player = zeros(Int64, game.players)
     split_by_player = zeros(Float64, game.players)
+    which_hands = zeros(Int64, game.players, 9)
+    #~ hands_in_split = zeros(Float64, game.players)
     for _ = 1:game.simulations
-        #& player cards and shared cards should be refactored. Into a struct
         hands = Sample(game::Game)
         player_winners = Determine_Win(hands)
-        if length(player_winners) == 1
-            wins_by_player[player_winners] .+= 1
+        if length(player_winners[1]) == 1
+            wins_by_player[player_winners[1][1]] += 1
+            which_hands[player_winners[1][1], player_winners[2]] += 1
         else
-            players_in_split = 1/length(player_winners)
-            split_by_player[player_winners] .+= players_in_split
+            players_in_split = 1/length(player_winners[1][1])
+            split_by_player[player_winners[1]] .+= players_in_split
+            which_hands[player_winners[1][1], player_winners[2]] += 1
         end
     end
-    return wins_by_player/game.simulations, split_by_player/game.simulations
+    return wins_by_player/game.simulations, split_by_player/game.simulations, which_hands
 end
 
 function Sample(game::Game)
@@ -67,33 +73,37 @@ function Sample(game::Game)
 end
 
 function Determine_Win(hands::Hands)
+    #& Here we should determine the hands for each player. This means that we cannot only
+    #& return the winning hands since we also want the odds of getting any hand.
+    #& To get that we will need to run through all hand everytime. Is that what we need?
+    #& Should I make it an option? 
+
+    #& Maybe: implement the winnings hands first; make the chart; optimize the code; implement 
+    #& hands without any condition.
     determine_hand = (Straight_Flush, Four_Kind, Full_House, Flush, Straight, Three_Kind, Two_Pairs, Two_Kind, High_Card)
+    it = 1
     for fun in determine_hand
         if fun(hands) == "non-existent"
+            it += 1
             continue
         else
-            println(fun)
-            return fun(hands)
+            return fun(hands), it
         end
     end
 end 
 
 function Cards_To_Hands(player_cards, shared_cards)
-    hands_for_each_player = zeros(Int64, length(player_cards)÷2, 7)
+    hands = zeros(Int64, length(player_cards)÷2, 7)
     for player = 1:length(player_cards)÷2
         for card = 1:7
-            if card in [1,2]
-                hands_for_each_player[player,card] = player_cards[(player - 1)*2 + card]
+            if card in [1, 2]
+                hands[player, card] = player_cards[(player - 1) * 2 + card]
             else
-                hands_for_each_player[player,card] = shared_cards[card-2]
+                hands[player, card] = shared_cards[card - 2]
             end
         end
     end
-    modulus_13_hands = hands_for_each_player .% 13
-    modulus_13_hands[modulus_13_hands .== 0] .= 13
-    sorted_hands = sort(modulus_13_hands, dims = 2, rev = true)
-    weights = [64, 32, 16, 8, 4, 2, 1]
-    return Hands(length(player_cards)÷2, 7, hands_for_each_player, sorted_hands, weights)
+    return Hands(hands)
 end
 
 function High_Card(hands::Hands)
@@ -101,13 +111,13 @@ function High_Card(hands::Hands)
     for card = 1:hands.cards
         highest_card = 0
         for player = 1:hands.players
-            if hands.sorted_mod_hands[player, card] == highest_card
+            if hands.sorted[player, card] == highest_card
                 winners[player,card] = 1
-                highest_card = hands.sorted_mod_hands[player, card]
-            elseif hands.sorted_mod_hands[player, card] > highest_card
-                winners[:     ,card] .= 0
-                winners[player,card] = 1
-                highest_card = hands.sorted_mod_hands[player, card]
+                highest_card = hands.sorted[player, card]
+            elseif hands.sorted[player, card] > highest_card
+                winners[:, card] .= 0
+                winners[player, card] = 1
+                highest_card = hands.sorted[player, card]
             end
         end
     end
@@ -118,21 +128,18 @@ function High_Card(hands::Hands)
 end
 
 function Two_Kind(hands::Hands)
-    if Check_Two_Kind(hands.hands)
-        return "non-existent"
-    end
+    Check_Two_Kind(hands) && return "non-existent"
     player_scores = zeros(Int64, hands.players, 7)
     for player = 1:hands.players
         for card = 1:hands.cards
-            if card != 1 && hands.sorted_mod_hands[player, card] == hands.sorted_mod_hands[player, card - 1]
+            if card != 1 && hands.sorted[player, card] == hands.sorted[player, card - 1]
                 continue
             end
-            if card != 7 && hands.sorted_mod_hands[player, card] == hands.sorted_mod_hands[player, card + 1] 
-                player_scores[player, card] = 3000*hands.sorted_mod_hands[player, card]
-                player_scores[player, card + 1] = 3000*hands.sorted_mod_hands[player, card]
-                two_of_a_kind_checker = 1
+            if card != 7 && hands.sorted[player, card] == hands.sorted[player, card + 1] 
+                player_scores[player, card] = 3000 * hands.sorted[player, card]
+                player_scores[player, card + 1] = 3000 * hands.sorted[player, card]
             else 
-                player_scores[player, card] = hands.weights[card] * hands.sorted_mod_hands[player, card]
+                player_scores[player, card] = hands.weights[card] * hands.sorted[player, card]
             end
         end
     end
@@ -153,32 +160,32 @@ function Two_Pairs(hands::Hands)
     end
     player_scores = zeros(Int64, hands.players, 7)
     two_pairs_checker = zeros(Int64, hands.players)
-    for player in hands.players
+    for player in 1:hands.players
         first_pair = 1
-        for card in hands.cards
-            if card != 1 && hands.sorted_mod_hands[player, card] == hands.sorted_mod_hands[player, card - 1]
+        for card in 1:hands.cards
+            if card != 1 && hands.sorted[player, card] == hands.sorted[player, card - 1]
                 if card == 7 && player_scores[player, card] == 0  
-                    player_scores[player, card] = hands.sorted_mod_hands[player, card]
+                    player_scores[player, card] = hands.sorted[player, card]
                 end
                 continue
             end
-            if card != 7 && hands.sorted_mod_hands[player, card] == hands.sorted_mod_hands[player, card + 1] && two_pairs_checker[player] < 2
+            if card != 7 && hands.sorted[player, card] == hands.sorted[player, card + 1] && two_pairs_checker[player] < 2
                 pair_weight = 3000
                 if first_pair == 1
                     pair_weight = 15*3000
                     first_pair = 0
                 end
-                player_scores[player, card] = pair_weight*hands.sorted_mod_hands[player, card]
-                player_scores[player, card + 1] = pair_weight*hands.sorted_mod_hands[player, card ]
+                player_scores[player, card] = pair_weight*hands.sorted[player, card]
+                player_scores[player, card + 1] = pair_weight*hands.sorted[player, card ]
                 two_pairs_checker[player] += 1            
             else
-                player_scores[player, card] = hands.weights[card] * hands.sorted_mod_hands[player, card]
+                player_scores[player, card] = hands.weights[card] * hands.sorted[player, card]
             end
         end    
     end
 
     sorted_scores = sort(player_scores, dims = 2, rev = true)
-    for player in hands.players
+    for player in 1:hands.players
         pair_count = 0
         first_card_of_pair = 0
         for card in setdiff!(collect(1:hands.cards), 7)
@@ -194,7 +201,7 @@ function Two_Pairs(hands::Hands)
     end
     summed_scores = sum(sorted_scores[:,1:5], dims = 2)
     vector_summed_scores = []
-    for player in hands.players
+    for player in 1:hands.players
         push!(vector_summed_scores, summed_scores[player])
     end
     best_hand = findmax(vector_summed_scores)[1]
@@ -209,15 +216,15 @@ function Three_Kind(hands::Hands)
         three_kind = 0
         card = 1
         while card <= hands.cards 
-            if three_kind == 0 && card <= 5 && hands.sorted_mod_hands[player, card] == hands.sorted_mod_hands[player, card + 1] == hands.sorted_mod_hands[player, card + 2] 
-                player_scores[player, card + 0] = 3000*hands.sorted_mod_hands[player, card + 0]
-                player_scores[player, card + 1] = 3000*hands.sorted_mod_hands[player, card + 1]
-                player_scores[player, card + 2] = 3000*hands.sorted_mod_hands[player, card + 2]
+            if three_kind == 0 && card <= 5 && hands.sorted[player, card] == hands.sorted[player, card + 1] == hands.sorted[player, card + 2] 
+                player_scores[player, card + 0] = 3000*hands.sorted[player, card + 0]
+                player_scores[player, card + 1] = 3000*hands.sorted[player, card + 1]
+                player_scores[player, card + 2] = 3000*hands.sorted[player, card + 2]
                 three_kind = 1
                 exsistent_three_kind = 1
                 card += 2
             else
-                player_scores[player, card] = hands.weights[card]*hands.sorted_mod_hands[player, card]
+                player_scores[player, card] = hands.weights[card]*hands.sorted[player, card]
             end
             card += 1
         end
@@ -228,7 +235,7 @@ function Three_Kind(hands::Hands)
     sorted_scores = sort(player_scores, dims = 2, rev = true)
     summed_scores = sum(sorted_scores[:,1:5], dims = 2)
     vector_summed_scores = []
-    for player in hands.players
+    for player in 1:hands.players
         push!(vector_summed_scores, summed_scores[player])
     end
     best_hand = findmax(vector_summed_scores)[1]
@@ -239,17 +246,17 @@ end
 function Straight(hands::Hands)
     straight_check = 0
     player_scores = zeros(Int64, hands.players)
-    for player in hands.players
+    for player in 1:hands.players
         count = 1
-        ace_updated_hand = hands.sorted_mod_hands[player,:]
+        ace_updated_hand = copy(hands.sorted[player, :])
         if 13 in ace_updated_hand
-            pushfirst!(ace_updated_hand, 0)
+            push!(ace_updated_hand, 0)
         end
         for card = 1:length(ace_updated_hand) - 1
-            if ace_updated_hand[card] == ace_updated_hand[card+1] - 1
+            if ace_updated_hand[card] == ace_updated_hand[card + 1] + 1
                 count += 1
                 if count == 5
-                    player_scores[player] = ace_updated_hand[card]
+                    player_scores[player] = copy(ace_updated_hand[card])
                     straight_check = 1
                 end
             else
@@ -261,16 +268,19 @@ function Straight(hands::Hands)
         return "non-existent"
     end
     best_hand = findmax(player_scores)[1]
-    player_winners = findall(x->x == best_hand, player_scores)
+    player_winners = findall(x -> x == best_hand, player_scores)
     return player_winners
 end
 
+""" 
+If there is a flush present then the functions returns the winner(s)
+"""
 function Flush(hands::Hands)
     flush_checker = 0
     player_scores_with_suits = zeros(Int64, hands.players, hands.cards, 4)
-    for player in hands.players
+    for player in 1:hands.players
         count_suit = zeros(Int64, 4)
-        for card in hands.cards
+        for card in 1:hands.cards
             if hands.hands[player, card] <= 13
                 player_scores_with_suits[player, card, 1] = Card_To_Kind(hands.hands[player, card])
             elseif hands.hands[player, card] <= 26
@@ -282,7 +292,7 @@ function Flush(hands::Hands)
             end
         end
     end
-    for player in hands.players
+    for player in 1:hands.players
         for suit = 1:4
             if sum(player_scores_with_suits[player, :, suit] .> 0.5 ) >= 5
                 player_scores_with_suits[player, :, suit] = 20*player_scores_with_suits[player, :, suit]
@@ -296,8 +306,8 @@ function Flush(hands::Hands)
     end
     sorted_scores_with_suits = sort(player_scores_with_suits, dims = 2, rev = true)
     weighted_player_scores_with_suits = zeros(Int64, size(sorted_scores_with_suits)[1], size(sorted_scores_with_suits)[2], size(sorted_scores_with_suits)[3])
-    for player in hands.players 
-        for card in hands.cards
+    for player in 1:hands.players 
+        for card in 1:hands.cards
             for suit = 1:4
                 weighted_player_scores_with_suits[player, card, suit] = hands.weights[card]*sorted_scores_with_suits[player, card, suit]
             end
@@ -312,8 +322,8 @@ end
 function Full_House(hands::Hands)
     player_score = zeros(Int64, hands.players)
     full_house_checker = 0
-    for player in hands.players
-        hand_for_a_given_player = hands.sorted_mod_hands[player, :]
+    for player in 1:hands.players
+        hand_for_a_given_player = hands.sorted[player, :]
         first_time_three_kinds = 1
         first_time_two_kinds = 1
         for i in 13:-1:1
@@ -348,13 +358,13 @@ function Four_Kind(hands::Hands)
     card_weight = [225, 15, 1]
     four_of_a_kind_checker = 0
     player_score = zeros(Int64, hands.players, hands.cards)
-    for player in hands.players
+    for player in 1:hands.players
         for i = 1:13
-            find_n_kinds = findall(x->x ==i, hands.sorted_mod_hands[player, :])
+            find_n_kinds = findall(x->x ==i, hands.sorted[player, :])
             if length(find_n_kinds) ==  4
-                player_score[player, find_n_kinds] = 10000*hands.sorted_mod_hands[player, find_n_kinds]
+                player_score[player, find_n_kinds] = 10000*hands.sorted[player, find_n_kinds]
                 remaining_cards = setdiff(1:7, find_n_kinds)
-                player_score[player, remaining_cards] = card_weight .* hands.sorted_mod_hands[player, remaining_cards]
+                player_score[player, remaining_cards] = card_weight .* hands.sorted[player, remaining_cards]
                 four_of_a_kind_checker = 1
             end
         end
@@ -377,7 +387,7 @@ function Straight_Flush(hands::Hands)
     straight_flush_checker = 0
     add_to_each_card = [0, 1, 2, 3, 4, 5, 6]
     player_score = zeros(Int64, hands.players)
-    for player in hands.players
+    for player in 1:hands.players
         player_hand_original = hands.hands[player, :]
         flush, suit, indices = Check_Flush(player_hand_original) 
         if flush
@@ -389,21 +399,17 @@ function Straight_Flush(hands::Hands)
                 values = findall(x->x == i, straight_and_Modulus_adjusted_hand)
                 if length(values) >= 5
                     straight_flush_checker = 1
-                    println("Here")
                     player_score[player] = straight_and_Modulus_adjusted_hand[1][1] 
                 end
             end
         end
 
     end
-    
     if straight_flush_checker == 0
         return "non-existent"
     end
-    
     best_hand = findmax(player_score)[1]
     player_winners = findall(x->x == best_hand, player_score)
-    
     return player_winners
 end
 
@@ -428,14 +434,13 @@ function Card_To_Kind(card)
     return kind
 end
 
-function Check_Two_Kind(hands_for_each_player)
-    mod_hands = hands_for_each_player .% 13
-    for i = 1:length(hands_for_each_player[:,1])
-        if length(mod_hands[i,:]) == length(unique(mod_hands[i,:]))
-            return true
+function Check_Two_Kind(hands::Hands)
+    for i = 1:hands.players
+        if 7 != length(unique(hands.sorted[i, :]))
+            return false
         end
     end
-    return false
+    return true
 end
 
 function Check_Two_Pairs(hands_for_each_player)
@@ -457,6 +462,5 @@ function Check_Three_Kind()
     end
     return true
 end
-
 
 end # module
