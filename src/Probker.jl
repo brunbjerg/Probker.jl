@@ -2,6 +2,11 @@ module Probker
 using StatsBase
 using Random
 
+#~ I will stop now. I should start by looking at a previous git version of my code. 
+
+#~ Or should I just check every thing to start with so I only ever call a single hands function?
+#~ Yes! This is what I will do! 
+
 struct Game
     players::Int64
     cards::Vector{Int64}
@@ -38,22 +43,19 @@ export Game
 export Hands
 
 function Simulate(game::Game)
-    #& Okay we need to make this work for the 
-
     wins_by_player = zeros(Int64, game.players)
     split_by_player = zeros(Float64, game.players)
     which_hands = zeros(Int64, game.players, 9)
-    #~ hands_in_split = zeros(Float64, game.players)
     for _ = 1:game.simulations
         hands = Sample(game::Game)
-        player_winners = Determine_Win(hands)
-        if length(player_winners[1]) == 1
-            wins_by_player[player_winners[1][1]] += 1
-            which_hands[player_winners[1][1], player_winners[2]] += 1
+        player_winners, player_hand = Determine_Win(hands)
+        if length(player_winners) == 1
+            wins_by_player[player_winners] .+= 1
+            which_hands[player_winners, player_hand] .+= 1
         else
-            players_in_split = 1/length(player_winners[1][1])
-            split_by_player[player_winners[1]] .+= players_in_split
-            which_hands[player_winners[1][1], player_winners[2]] += 1
+            players_in_split = 1/length(player_winners)
+            split_by_player[player_winners] .+= players_in_split
+            which_hands[player_winners, player_hand] .+= 1
         end
     end
     return wins_by_player/game.simulations, split_by_player/game.simulations, which_hands
@@ -72,25 +74,116 @@ function Sample(game::Game)
     return Cards_To_Hands(cards[1:game.players*2], cards[game.players*2+1:end])
 end
 
-function Determine_Win(hands::Hands)
-    #& Here we should determine the hands for each player. This means that we cannot only
-    #& return the winning hands since we also want the odds of getting any hand.
-    #& To get that we will need to run through all hand everytime. Is that what we need?
-    #& Should I make it an option? 
+#& I could make this a completely different way. Making a checker function and then make the checkers dispatch to the right hand function.
+#& Is this better? Yes I think so. Now I am checking inside of every function. This is not necessary. As it is now there is some kind of coupling 
+#& between every function for each hand function and between each hand function and its corresponding checker function. This seems like
+#& I should make one checker function that checks everything. 
 
-    #& Maybe: implement the winnings hands first; make the chart; optimize the code; implement 
-    #& hands without any condition.
-    determine_hand = (Straight_Flush, Four_Kind, Full_House, Flush, Straight, Three_Kind, Two_Pairs, Two_Kind, High_Card)
-    it = 1
-    for fun in determine_hand
-        if fun(hands) == "non-existent"
-            it += 1
-            continue
-        else
-            return fun(hands), it
+function Determine_Win(hands::Hands)
+    determined_hand = Hands_Checker(hands)
+    determined_hand(hands)
+
+end 
+
+abstract type Checker end
+
+struct High_Card <: Checker end
+struct Two_Kind <: Checker end
+struct Two_Pairs <: Checker end
+struct Three_Kind <: Checker end
+struct Straight <: Checker end
+struct Flush <: Checker end
+struct Full_House <: Checker end
+struct Four_Kind <: Checker end
+struct Straight_Flush <: Checker end
+
+#& I am now thinking alot and not coding as much. What should I do? 
+
+#& My guts tell me that there is a very good way of during this.
+
+function Hands_Checker(hands::Hands)
+    Check_Straight_Flush(hands::Hands)  && return Straight_Flush
+    Check_Four_Kind(hands::Hands)       && return Four_Kind
+    Check_Full_House(hands::Hands)      && return Full_House
+    Check_Flush(hands::Hands)      && return Flush
+    Check_Straight(hands::Hands)      && return Straight
+    Check_Three_Kind(hands::Hands)      && return Three_Kind
+    Check_Two_Pair(hands::Hands)      && return Two_Pairs
+    Check_Two_Kind(hands::Hands)      && return Two_Kind
+    return High_Card
+
+end
+
+function Check_Straight_Flush(hands::Hands)
+    return Check_Straight(hands) && Check_Flush(hands)
+end
+
+function Check_Four_Kind(hands::Hands)
+    for player in 1:hands.players
+        maximum(counts(hands.sorted[player, :])) == 4 && return true
+    end
+    return false
+end
+
+function Check_Full_House(hands::Hands)
+    for player in 1:hands.players
+        sum(sort(counts(hands.sorted[player, :]), rev = true)[1:2]) == 5 && return true
+    end
+    return false        
+end
+
+function Check_Two_Pair(hands::Hands)
+    for player in 1:hands.players
+        sum(sort(counts(hands.sorted[player, :]), rev = true)[1:2]) == 4 && return true
+    end
+    return false        
+end
+
+function Check_Straight(hands::Hands)
+    support_function = [0, 1, 2, 3, 4, 5, 6, 7]
+    for player in 1:hands.players   
+        temp_hands = hands.sorted[player, :]
+        if 13 in temp_hands
+            push!(temp_hands, 0)
+        else 
+            push!(temp_hands, -1)
+        end
+        temp_hands .+= support_function 
+        maximum(counts(temp_hands)) >= 5 && return true
+    end
+    return false
+end
+
+
+function Check_Flush(hands::Hands)
+    for player in 1:hands.players
+        for i in 0:3
+            if count(x -> x in (1 + i*13 :13 + i*13), hands.hands[player, :]) >= 5 
+                return Flush()
+            end
         end
     end
-end 
+    return false
+end
+
+function Check_Three_Kind(hands::Hands)
+    for player in 1:hands.players
+        if any(counts(hands.sorted[player, :]) .>= 3)
+            return true
+        end 
+    end
+    return false
+end
+
+
+function Check_Three_Kind(hands::Hands)
+    for player in 1:hands.players
+        if any(counts(hands.sorted[player, :]) .>= 2)
+            return true
+        end 
+    end
+    return false
+end
 
 function Cards_To_Hands(player_cards, shared_cards)
     hands = zeros(Int64, length(player_cards)÷2, 7)
@@ -128,7 +221,6 @@ function High_Card(hands::Hands)
 end
 
 function Two_Kind(hands::Hands)
-    Check_Two_Kind(hands) && return "non-existent"
     player_scores = zeros(Int64, hands.players, 7)
     for player = 1:hands.players
         for card = 1:hands.cards
@@ -155,9 +247,6 @@ function Two_Kind(hands::Hands)
 end
 
 function Two_Pairs(hands::Hands)
-    if Check_Two_Pairs(hands.hands)
-        return "non-existent"
-    end
     player_scores = zeros(Int64, hands.players, 7)
     two_pairs_checker = zeros(Int64, hands.players)
     for player in 1:hands.players
@@ -211,7 +300,6 @@ end
 
 function Three_Kind(hands::Hands)
     player_scores = zeros(Int64, hands.players, hands.cards)
-    exsistent_three_kind = 0
     for player in 1:hands.players
         three_kind = 0
         card = 1
@@ -221,16 +309,12 @@ function Three_Kind(hands::Hands)
                 player_scores[player, card + 1] = 3000*hands.sorted[player, card + 1]
                 player_scores[player, card + 2] = 3000*hands.sorted[player, card + 2]
                 three_kind = 1
-                exsistent_three_kind = 1
                 card += 2
             else
                 player_scores[player, card] = hands.weights[card]*hands.sorted[player, card]
             end
             card += 1
         end
-    end
-    if exsistent_three_kind == 0
-        return "non-existent"
     end
     sorted_scores = sort(player_scores, dims = 2, rev = true)
     summed_scores = sum(sorted_scores[:,1:5], dims = 2)
@@ -244,7 +328,6 @@ function Three_Kind(hands::Hands)
 end
 
 function Straight(hands::Hands)
-    straight_check = 0
     player_scores = zeros(Int64, hands.players)
     for player in 1:hands.players
         count = 1
@@ -257,15 +340,11 @@ function Straight(hands::Hands)
                 count += 1
                 if count == 5
                     player_scores[player] = copy(ace_updated_hand[card])
-                    straight_check = 1
                 end
             else
                 count = 1
             end
         end
-    end
-    if straight_check == 0 
-        return "non-existent"
     end
     best_hand = findmax(player_scores)[1]
     player_winners = findall(x -> x == best_hand, player_scores)
@@ -276,7 +355,6 @@ end
 If there is a flush present then the functions returns the winner(s)
 """
 function Flush(hands::Hands)
-    flush_checker = 0
     player_scores_with_suits = zeros(Int64, hands.players, hands.cards, 4)
     for player in 1:hands.players
         count_suit = zeros(Int64, 4)
@@ -297,12 +375,8 @@ function Flush(hands::Hands)
             if sum(player_scores_with_suits[player, :, suit] .> 0.5 ) >= 5
                 player_scores_with_suits[player, :, suit] = 20*player_scores_with_suits[player, :, suit]
                 player_scores_with_suits[player, :, setdiff(1:4, suit)] .= 0 
-                flush_checker = 1
             end
         end
-    end
-    if flush_checker == 0
-        return "non-existent"
     end
     sorted_scores_with_suits = sort(player_scores_with_suits, dims = 2, rev = true)
     weighted_player_scores_with_suits = zeros(Int64, size(sorted_scores_with_suits)[1], size(sorted_scores_with_suits)[2], size(sorted_scores_with_suits)[3])
@@ -321,7 +395,6 @@ end
 
 function Full_House(hands::Hands)
     player_score = zeros(Int64, hands.players)
-    full_house_checker = 0
     for player in 1:hands.players
         hand_for_a_given_player = hands.sorted[player, :]
         first_time_three_kinds = 1
@@ -342,9 +415,6 @@ function Full_House(hands::Hands)
             end
         end
     end
-    if full_house_checker == 0
-        return "non-existent"
-    end
     best_hand = findmax(player_score)[1]
     player_winners = findall(x->x == best_hand, player_score)
     winners = []
@@ -360,17 +430,14 @@ function Four_Kind(hands::Hands)
     player_score = zeros(Int64, hands.players, hands.cards)
     for player in 1:hands.players
         for i = 1:13
-            find_n_kinds = findall(x->x ==i, hands.sorted[player, :])
+            find_n_kinds = findall(x->x == i, hands.sorted[player, :])
             if length(find_n_kinds) ==  4
-                player_score[player, find_n_kinds] = 10000*hands.sorted[player, find_n_kinds]
+                player_score[player, find_n_kinds] = 10000 * hands.sorted[player, find_n_kinds]
                 remaining_cards = setdiff(1:7, find_n_kinds)
                 player_score[player, remaining_cards] = card_weight .* hands.sorted[player, remaining_cards]
                 four_of_a_kind_checker = 1
             end
         end
-    end
-    if four_of_a_kind_checker == 0
-        return "non-existent"
     end
     sorted_player_scores = sort(player_score, dims = 2, rev = true)
     summed_player_scores = sum(sorted_player_scores[:,1:5], dims = 2)
@@ -384,7 +451,6 @@ function Four_Kind(hands::Hands)
 end
 
 function Straight_Flush(hands::Hands)  
-    straight_flush_checker = 0
     add_to_each_card = [0, 1, 2, 3, 4, 5, 6]
     player_score = zeros(Int64, hands.players)
     for player in 1:hands.players
@@ -404,9 +470,6 @@ function Straight_Flush(hands::Hands)
             end
         end
 
-    end
-    if straight_flush_checker == 0
-        return "non-existent"
     end
     best_hand = findmax(player_score)[1]
     player_winners = findall(x->x == best_hand, player_score)
@@ -432,35 +495,6 @@ function Card_To_Kind(card)
         kind = 13
     end
     return kind
-end
-
-function Check_Two_Kind(hands::Hands)
-    for i = 1:hands.players
-        if 7 != length(unique(hands.sorted[i, :]))
-            return false
-        end
-    end
-    return true
-end
-
-function Check_Two_Pairs(hands_for_each_player)
-    mod_hands = hands_for_each_player .% 13
-    for i = 1:length(hands_for_each_player[:,1])
-        if 7 == 2 + length(unique(mod_hands[i,:]))
-            return false
-        end
-    end
-    return true
-end
-
-function Check_Three_Kind()
-    mod_hands = hands_for_each_player .% 13
-    for i = 1:length(hands_for_each_player[:,1])
-        if mode(mod_hands[i,:]) == 3
-            return false
-        end
-    end
-    return true
 end
 
 end # module

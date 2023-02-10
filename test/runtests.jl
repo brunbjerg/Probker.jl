@@ -3,7 +3,17 @@ using Coverage
 using Random
 using StatsBase
 using Probker
+using Profile
+using PProf
+using JET
 revise(Probker)
+
+########################################################
+##########              PROFILING             ##########
+########################################################
+Profile.clear()
+@profile Simulate(Game(2, [13,25,0,0,0,0,0,0,0], 10000))
+pprof()
 
 @testset "Simulate_Hidden_Cards " begin
     test_game_flop = Game(8, [13, 14, 15, 1, 37, 32, 21, 22, 23, 27, 28, 20, 43, 49, 0, 0, 51, 52, 26, 47, 41], 10000)
@@ -48,21 +58,32 @@ end
 
 
 
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_10, shared_cards_10)) == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_9, shared_cards_9)) == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_1, shared_cards_1)) == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_2, shared_cards_2)) == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_3, shared_cards_3)) == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_4, shared_cards_4)) == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_5, shared_cards_5)) == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_6, shared_cards_6)) == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_7, shared_cards_7)) == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_8, shared_cards_8)) == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_11, shared_cards_11)) == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_12, shared_cards_12)) == [2]
-    @test Probker.Determine_Win(hands_1) == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_10, shared_cards_10))[1] == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_9, shared_cards_9))[1] == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_1, shared_cards_1))[1] == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_2, shared_cards_2))[1] == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_3, shared_cards_3))[1] == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_4, shared_cards_4))[1] == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_5, shared_cards_5))[1] == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_6, shared_cards_6))[1] == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_7, shared_cards_7))[1] == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_8, shared_cards_8))[1] == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_11, shared_cards_11))[1] == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_12, shared_cards_12))[1] == [2]
+    @test Probker.Determine_Win(hands_1)[1] == [1]
     
 end
+
+@testset "Test checker functions" begin
+    hands_1 = Hands([    1 2 3 4 5 8 9;
+                        11 9 3 4 5 8 9])
+    hands_2 = Hands([1 3 5 7 9 11 13;
+                     2 4 5 7 9 11 13])
+    @test Probker.Check_Straight(hands_1::Hands) == true
+    @test Probker.Check_Straight(hands_2::Hands) == false
+
+end
+
 
 @testset "Test_High_Card" begin
     hands_1 = Hands([   13  2 4 17 19 31 34;
