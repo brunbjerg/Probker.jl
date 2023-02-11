@@ -56,22 +56,19 @@ end
                         26  7 21 40 39 14 34;
                         17 38 21 40 39 14 34;])
 
-
-
     @test Probker.Determine_Win(Cards_To_Hands(player_cards_10, shared_cards_10))[1] == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_9, shared_cards_9))[1] == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_1, shared_cards_1))[1] == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_2, shared_cards_2))[1] == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_3, shared_cards_3))[1] == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_4, shared_cards_4))[1] == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_5, shared_cards_5))[1] == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_9, shared_cards_9))[1]   == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_1, shared_cards_1))[1]   == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_2, shared_cards_2))[1]   == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_3, shared_cards_3))[1]   == [2]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_4, shared_cards_4))[1]   == [1]
+    @test Probker.Determine_Win(Cards_To_Hands(player_cards_5, shared_cards_5))[1]   == [2]
     @test Probker.Determine_Win(Cards_To_Hands(player_cards_6, shared_cards_6))[1] == [1]
     @test Probker.Determine_Win(Cards_To_Hands(player_cards_7, shared_cards_7))[1] == [2]
     @test Probker.Determine_Win(Cards_To_Hands(player_cards_8, shared_cards_8))[1] == [1]
     @test Probker.Determine_Win(Cards_To_Hands(player_cards_11, shared_cards_11))[1] == [2]
     @test Probker.Determine_Win(Cards_To_Hands(player_cards_12, shared_cards_12))[1] == [2]
     @test Probker.Determine_Win(hands_1)[1] == [1]
-    
 end
 
 @testset "Test checker functions" begin
@@ -82,6 +79,33 @@ end
     @test Probker.Check_Straight(hands_1::Hands) == true
     @test Probker.Check_Straight(hands_2::Hands) == false
 
+    player_cards_4 = [9, 10, 6, 17]
+    shared_cards_4 = [5, 7, 8, 39, 52]
+
+    @test Probker.Check_Straight(Cards_To_Hands(player_cards_4, shared_cards_4)) 
+
+    player_cards_12 = [48, 51, 1, 11+13+13]
+    shared_cards_12 = [1+13+13,3+13,13,4,13+13+13+5]
+    #& I should make the hands constructor take two different input types.
+    #& I should make a function for creating hands and change the hands field in the 
+    #& struct to be a single array. 
+    hands_3 = Hands([   1 14 27 13 26 2 3;
+                        4 5 27 13 26 2 3])
+    hands_4 = Hands([   1 2 3 4 5 6 7;
+                        8 9 3 4 5 6 7])
+
+
+    hands_7 = Cards_To_Hands(player_cards_12, shared_cards_12)
+
+    @test Probker.Check_Full_House(hands_3) == true
+    @test Probker.Check_Full_House(hands_4) == false
+    @test Probker.Check_Full_House(hands_7) == false
+
+
+    hands_5 = Hands([1 14 27 2 3 4 5; 13 15 27 2 3 4 5])
+    hands_6 = Hands([1  8 27 2 3 4 5; 13 15 27 2 3 4 5])
+    @test Probker.Check_Three_Kind(hands_5) == true
+    @test Probker.Check_Three_Kind(hands_6) == false
 end
 
 
@@ -134,7 +158,6 @@ end
     @test Two_Kind(hands_2) == [2]
     @test Two_Kind(hands_3) == [1, 2]
     @test Two_Kind(hands_4) == collect(1:9)
-    @test Two_Kind(hands_5) == "non-existent"
 end
 
 @testset "Test_Two_Pairs" begin
@@ -161,7 +184,6 @@ end
     @test Two_Pairs(hands_2) == [2]
     @test Two_Pairs(hands_3) == [1, 2]
     @test Two_Pairs(hands_4) == collect(1:9)
-    @test Two_Pairs(hands_5) == "non-existent"
 end
 
 @testset "Test_Three_Kind" begin
@@ -186,7 +208,6 @@ end
     @test Three_Kind(hands_1) == [1]
     @test Three_Kind(hands_2) == [1, 2]
     @test Three_Kind(hands_3) == [2]
-    @test Three_Kind(hands_4) == "non-existent"
     @test Three_Kind(hands_5) == [9]
 end
 
@@ -202,7 +223,6 @@ end
 
     @test Straight(hands_1) == [1, 2]
     @test Straight(hands_2) == [2]
-    @test Straight(hands_3) == "non-existent"
     @test Straight(hands_4) == [2]
 end
 
@@ -215,7 +235,6 @@ end
                         5 6 3 14 15 16 43])
     @test Flush(hands_1) == [2]
     @test Flush(hands_2) == [1, 2]
-    @test Flush(hands_3) == "non-existent"
     
 end
 
@@ -236,7 +255,6 @@ end
     
     @test Full_House(hands_1) == [2]
     @test Full_House(hands_2) == [1, 2]
-    @test Full_House(hands_3) == "non-existent"
     @test Full_House(hands_4) == [1]
     
 end
@@ -254,7 +272,6 @@ end
     @test Four_Kind(hands_1) == [1]
     @test Four_Kind(hands_2) == [2]
     @test Four_Kind(hands_3) == [1, 2]
-    @test Four_Kind(hands_4) == "non-existent"
 end
 
 @testset "Test_Straight_Flush" begin
@@ -273,7 +290,6 @@ end
     @test Straight_Flush(hands_1) == [1]
     @test Straight_Flush(hands_2) == [2]
     @test Straight_Flush(hands_3) == [1, 2]
-    @test Straight_Flush(hands_4) == "non-existent"
 end;
 
 
@@ -311,4 +327,4 @@ end;
     
 #& The conditional chance is always lower than the 
 #& non-conditional chance right? 
-    #&
+#&

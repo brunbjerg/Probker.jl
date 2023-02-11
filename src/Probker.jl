@@ -2,11 +2,6 @@ module Probker
 using StatsBase
 using Random
 
-#~ I will stop now. I should start by looking at a previous git version of my code. 
-
-#~ Or should I just check every thing to start with so I only ever call a single hands function?
-#~ Yes! This is what I will do! 
-
 struct Game
     players::Int64
     cards::Vector{Int64}
@@ -80,37 +75,22 @@ end
 #& I should make one checker function that checks everything. 
 
 function Determine_Win(hands::Hands)
-    determined_hand = Hands_Checker(hands)
-    determined_hand(hands)
+    existent = Hands_Checker(hands)
+    existent |> println
+    return existent[1](hands), existent[2]
 
 end 
 
-abstract type Checker end
-
-struct High_Card <: Checker end
-struct Two_Kind <: Checker end
-struct Two_Pairs <: Checker end
-struct Three_Kind <: Checker end
-struct Straight <: Checker end
-struct Flush <: Checker end
-struct Full_House <: Checker end
-struct Four_Kind <: Checker end
-struct Straight_Flush <: Checker end
-
-#& I am now thinking alot and not coding as much. What should I do? 
-
-#& My guts tell me that there is a very good way of during this.
-
 function Hands_Checker(hands::Hands)
-    Check_Straight_Flush(hands::Hands)  && return Straight_Flush
-    Check_Four_Kind(hands::Hands)       && return Four_Kind
-    Check_Full_House(hands::Hands)      && return Full_House
-    Check_Flush(hands::Hands)      && return Flush
-    Check_Straight(hands::Hands)      && return Straight
-    Check_Three_Kind(hands::Hands)      && return Three_Kind
-    Check_Two_Pair(hands::Hands)      && return Two_Pairs
-    Check_Two_Kind(hands::Hands)      && return Two_Kind
-    return High_Card
+    Check_Straight_Flush(hands::Hands)  && return Straight_Flush, 1
+    Check_Four_Kind(hands::Hands)       && return Four_Kind, 2
+    Check_Full_House(hands::Hands)      && return Full_House, 3
+    Check_Flush(hands::Hands)      && return Flush, 4
+    Check_Straight(hands::Hands)      && return Straight, 5
+    Check_Three_Kind(hands::Hands)      && return Three_Kind, 6
+    Check_Two_Pair(hands::Hands)      && return Two_Pairs, 7
+    Check_Two_Kind(hands::Hands)      && return Two_Kind, 8
+    return High_Card, 9
 
 end
 
@@ -132,13 +112,6 @@ function Check_Full_House(hands::Hands)
     return false        
 end
 
-function Check_Two_Pair(hands::Hands)
-    for player in 1:hands.players
-        sum(sort(counts(hands.sorted[player, :]), rev = true)[1:2]) == 4 && return true
-    end
-    return false        
-end
-
 function Check_Straight(hands::Hands)
     support_function = [0, 1, 2, 3, 4, 5, 6, 7]
     for player in 1:hands.players   
@@ -154,12 +127,11 @@ function Check_Straight(hands::Hands)
     return false
 end
 
-
 function Check_Flush(hands::Hands)
     for player in 1:hands.players
         for i in 0:3
             if count(x -> x in (1 + i*13 :13 + i*13), hands.hands[player, :]) >= 5 
-                return Flush()
+                return true
             end
         end
     end
@@ -175,8 +147,14 @@ function Check_Three_Kind(hands::Hands)
     return false
 end
 
+function Check_Two_Pair(hands::Hands)
+    for player in 1:hands.players
+        sum(sort(counts(hands.sorted[player, :]), rev = true)[1:2]) == 4 && return true
+    end
+    return false        
+end
 
-function Check_Three_Kind(hands::Hands)
+function Check_Two_Kind(hands::Hands)
     for player in 1:hands.players
         if any(counts(hands.sorted[player, :]) .>= 2)
             return true
@@ -186,8 +164,8 @@ function Check_Three_Kind(hands::Hands)
 end
 
 function Cards_To_Hands(player_cards, shared_cards)
-    hands = zeros(Int64, length(player_cards)÷2, 7)
-    for player = 1:length(player_cards)÷2
+    hands = zeros(Int64, length(player_cards) ÷ 2, 7)
+    for player = 1:length(player_cards) ÷ 2
         for card = 1:7
             if card in [1, 2]
                 hands[player, card] = player_cards[(player - 1) * 2 + card]
