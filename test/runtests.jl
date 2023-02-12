@@ -5,14 +5,15 @@ using StatsBase
 using Probker
 using Profile
 using PProf
-using JET
+using BenchmarkTools
+using Revise
 revise(Probker)
 
 ########################################################
 ##########              PROFILING             ##########
 ########################################################
 Profile.clear()
-@profile Simulate(Game(2, [13,25,0,0,0,0,0,0,0], 10000))
+@profile Simulate(Game(2, [0,0,0,0,0,0,0,0,0], 100000))
 pprof()
 
 @testset "Simulate_Hidden_Cards " begin
@@ -24,11 +25,14 @@ end
     # royal flush vs four kind
     player_cards_1 = [9, 10, 13, 26]
     shared_cards_1 = [6, 7, 8, 39, 52]
+    @test Probker.Check_Straight_Flush(Cards_To_Hands(player_cards_1, shared_cards_1)) 
 
     player_cards_2 = [9, 10, 13, 26]
     shared_cards_2 = [5, 7, 8, 39, 52]
+
     player_cards_3 = [9, 10, 21, 26]
     shared_cards_3 = [5, 7, 8, 39, 52]
+
     player_cards_4 = [9, 10, 6, 17]
     shared_cards_4 = [5, 7, 8, 39, 52]
 
@@ -37,12 +41,16 @@ end
 
     player_cards_6 = [18, 31, 12, 10]
     shared_cards_6 = [5, 32, 8, 23, 25]
+
     player_cards_7 = [18, 37, 12, 10]
     shared_cards_7 = [5, 32, 8, 23, 25]
+
     player_cards_8 = [13, 9, 26, 40]
     shared_cards_8 = [23, 8, 32, 18, 41]
+
     player_cards_9 = [13, 26, 8, 27]
     shared_cards_9 = [3, 7, 9, 15, 11]
+
     player_cards_10 = [1, 5, 18, 15]
     shared_cards_10 = [3, 7, 9, 15, 11]
 
@@ -50,25 +58,25 @@ end
     shared_cards_11 = [3, 9, 10, 42, 38]
 
     player_cards_12 = [48, 51, 1, 11+13+13]
-    shared_cards_12 = [1+13+13,3+13,13,4,13+13+13+5]
+    shared_cards_12 = [1 + 13 + 13,3 + 13,13,4,13 + 13 + 13 + 5]
 
     hands_1 = Hands([   47 11 21 40 39 14 34;
                         26  7 21 40 39 14 34;
                         17 38 21 40 39 14 34;])
 
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_10, shared_cards_10))[1] == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_9, shared_cards_9))[1]   == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_1, shared_cards_1))[1]   == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_2, shared_cards_2))[1]   == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_3, shared_cards_3))[1]   == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_4, shared_cards_4))[1]   == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_5, shared_cards_5))[1]   == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_6, shared_cards_6))[1] == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_7, shared_cards_7))[1] == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_8, shared_cards_8))[1] == [1]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_11, shared_cards_11))[1] == [2]
-    @test Probker.Determine_Win(Cards_To_Hands(player_cards_12, shared_cards_12))[1] == [2]
-    @test Probker.Determine_Win(hands_1)[1] == [1]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_1, shared_cards_1))[1]   == [1]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_2, shared_cards_2))[1]   == [2]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_3, shared_cards_3))[1]   == [2]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_4, shared_cards_4))[1]   == [1]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_5, shared_cards_5))[1]   == [2]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_6, shared_cards_6))[1] == [1]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_7, shared_cards_7))[1] == [2]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_8, shared_cards_8))[1] == [1]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_9, shared_cards_9))[1]   == [1]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_10, shared_cards_10))[1] == [1]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_11, shared_cards_11))[1] == [2]
+    @test Probker.Hands_Checker(Cards_To_Hands(player_cards_12, shared_cards_12))[1] == [2]
+    @test Probker.Hands_Checker(hands_1)[1] == [1]
 end
 
 @testset "Test checker functions" begin
@@ -86,6 +94,7 @@ end
 
     player_cards_12 = [48, 51, 1, 11+13+13]
     shared_cards_12 = [1+13+13,3+13,13,4,13+13+13+5]
+
     #& I should make the hands constructor take two different input types.
     #& I should make a function for creating hands and change the hands field in the 
     #& struct to be a single array. 
@@ -95,11 +104,11 @@ end
                         8 9 3 4 5 6 7])
 
 
-    hands_7 = Cards_To_Hands(player_cards_12, shared_cards_12)
+    hands_12 = Cards_To_Hands(player_cards_12, shared_cards_12)
 
     @test Probker.Check_Full_House(hands_3) == true
     @test Probker.Check_Full_House(hands_4) == false
-    @test Probker.Check_Full_House(hands_7) == false
+    @test Probker.Check_Straight(hands_12) == false
 
 
     hands_5 = Hands([1 14 27 2 3 4 5; 13 15 27 2 3 4 5])
@@ -292,39 +301,15 @@ end
     @test Straight_Flush(hands_3) == [1, 2]
 end;
 
+############################################
+#####     Examine_Hands functions      #####
+############################################
 
+# function Examine_Hands(hands::Hands)
+#     for i in eachindex(hands.hands) 
 
+# end
 
+# function Examine_Hands(player_cards::Vector{Int}, shared_cards::Vector{Int})
 
-#~ I should talk with Jonas about the piecharts
-
-#& Determine win should say which kind of hand won. Do we care about the 
-#& the hands that the players got when they did not win?
-
-#& The key issue here is whether we should condition the probability on the 
-#& fact that the player won. What do I lose by not doing this? If a player 
-#& gets a good hand then that could be interesting the see the probability of
-#& that. I shou
-
-#& To get either result I have to provide a number for each kind of hand
-#& for each kind of player, where each number is the 
-#& number of times the hand was given. Should I mark when
-#& it is the winning hand? Yes at least I should make it 
-#& so that that there are some kind of measure that 
-#& keeps track of how we should which hand won.
-#& If I do not do this then the measure can seem a 
-#& little meaningless. I think that giving two pie charts 
-#& would be a good course of action. 
-
-#& Yes that is the way to go I think. I should also think of which chart 
-#& I could use. 
-    #& pie
-    #& spider and radar could actually be very good
-        #& I think that I will make 
-        #& one of these. Being in the outer ring would means 
-        #& 100% chance of getting that hand.
-    #& stacked polar chart
-    
-#& The conditional chance is always lower than the 
-#& non-conditional chance right? 
-#&
+# end
