@@ -9,6 +9,14 @@ using BenchmarkTools
 using Revise
 revise(Probker)
 
+#TODO###################################################
+#TODO######               TODO               ###########
+#TODO###################################################
+ 
+    #TODO Test straight flush throughly
+    #TODO Test straight throughly
+    #TODO Make probability fold
+    #TODO change the whole implementation to single array based
 ########################################################
 ##########              PROFILING             ##########
 ########################################################
@@ -21,7 +29,7 @@ pprof()
     @test Card_Duplication(Sample(test_game_flop)) == false broken = true
 end
 
-@testset "Test_Probker.Determine_Win" begin
+@testset "Test Checker_Hands" begin
     # royal flush vs four kind
     player_cards_1 = [9, 10, 13, 26]
     shared_cards_1 = [6, 7, 8, 39, 52]
@@ -300,16 +308,3 @@ end
     @test Straight_Flush(hands_2) == [2]
     @test Straight_Flush(hands_3) == [1, 2]
 end;
-
-############################################
-#####     Examine_Hands functions      #####
-############################################
-
-# function Examine_Hands(hands::Hands)
-#     for i in eachindex(hands.hands) 
-
-# end
-
-# function Examine_Hands(player_cards::Vector{Int}, shared_cards::Vector{Int})
-
-# end
