@@ -12,17 +12,18 @@ using Random
 #########################################################
 
 struct Game
-    players::Int64
-    cards::Vector{Int64}
-    pile::Vector{Int64}
-    samples::Int64
-    simulations::Int64
-    Game(players, cards, simulations) = 
-    new(players, cards, setdiff(collect(1:52), cards), sum(x -> x == 0, cards), simulations) 
+    players::Int
+    cards::Vector{Int}
+    pile::Vector{Int}
+    folded::Vector{Int}
+    samples::Int
+    simulations::Int
+    Game(players, cards, folded, simulations) = 
+    new(players, cards, setdiff(collect(1:52), cards, folded), folded, sum(x -> x == 0, cards), simulations) 
 end
 
 struct Hands
-    players::Int 
+    players::Vector{Int} 
     cards::Int
     hands::Matrix{Int}
     sorted::Matrix{Int}
@@ -34,7 +35,7 @@ struct Hands
         return sorted
     end
     weights = [64, 32, 16, 8, 4, 2, 1]
-    Hands(hands) = new(size(hands, 1), size(hands, 2), hands, Create_Mod_Hands(hands), weights)
+    Hands(hands, folded) = new([i for i in 1:size(hands, 1) if folded[i * 2 - 1] != -1], size(hands, 2), hands, Create_Mod_Hands(hands), weights)
 end
 
 #########################################################
@@ -72,9 +73,17 @@ include("Checker_Functions.jl")
 #########################################################
 
 function Simulate(game::Game)
-    wins_by_player = zeros(Int64, game.players)
+    #& Here we have to change the function so that no matter what 
+    #& we will get a player that has folded cannot win.
+
+    #& We have to remove the player from the calculations before it goes to the 
+    #& checker. The question is whether the code can handle a single player.
+    #& I do not think that should be a problem. If it is we will take that
+    #& later. The folded cards have already been removed.
+
+    wins_by_player = zeros(Int, game.players)
     split_by_player = zeros(Float64, game.players)
-    which_hands = zeros(Int64, game.players, 9)
+    which_hands = zeros(Int, game.players, 9)
     for _ = 1:game.simulations
         hands = Sample(game::Game)
         player_winners, player_hand = Hands_Checker(hands)
@@ -91,6 +100,7 @@ function Simulate(game::Game)
 end
 
 function Sample(game::Game)
+    #& The change should be done in here I think
     j = 0
     sampled_cards = sample(game.pile, game.samples, replace = false)
     cards = copy(game.cards)
@@ -100,7 +110,7 @@ function Sample(game::Game)
             cards[i] = sampled_cards[j]
         end
     end
-    return Cards_To_Hands(cards[1:game.players*2], cards[game.players*2+1:end])
+    return Cards_To_Hands(cards[1:game.players*2], cards[game.players*2+1:end], game.folded)
 end
 
 function Hands_Checker(hands::Hands)
@@ -116,10 +126,10 @@ function Hands_Checker(hands::Hands)
 end
 
 function High_Card(hands::Hands)
-    winners = zeros(Int64, hands.players, hands.cards)
+    winners = zeros(Int, maximum(hands.players), hands.cards)
     for card = 1:hands.cards
         highest_card = 0
-        for player = 1:hands.players
+        for player = hands.players
             if hands.sorted[player, card] == highest_card
                 winners[player,card] = 1
                 highest_card = hands.sorted[player, card]
@@ -133,12 +143,15 @@ function High_Card(hands::Hands)
     player_scores = winners * hands.weights 
     best_hand = findmax(player_scores)[1]
     winner_players = findall(x->x == best_hand, player_scores)
+
     return winner_players
 end
 
+#& I have a feeling that this code can be written much nicer! I want more practise! I feel a desire to keep up the work.
+
 function Two_Kind(hands::Hands)
-    player_scores = zeros(Int64, hands.players, 7)
-    for player = 1:hands.players
+    player_scores = zeros(Int, maximum(hands.players), 7)
+    for player = hands.players
         for card = 1:hands.cards
             if card != 1 && hands.sorted[player, card] == hands.sorted[player, card - 1]
                 continue
@@ -153,20 +166,25 @@ function Two_Kind(hands::Hands)
     end
     sorted_score = sort(player_scores, dims = 2, rev = true)
     summed_score = sum(sorted_score[:, 1:5], dims = 2)
-    vector_summed_score = []
-    for player = 1:hands.players
-        push!(vector_summed_score,summed_score[player, 1])
+
+    #& Using this new notation we cannot push anymore since the folded play is never added that means that we will shift an index and then not get
+    #& the right player. This should be a simple fix. 
+    vector_summed_score = zeros(Int, maximum(hands.players))
+    for player in hands.players
+        vector_summed_score[player] = summed_score[player, 1]
     end
     #! Change this
     best_hand = findmax(vector_summed_score)[1]
     winner_players = findall(x->x == best_hand, vector_summed_score)   
+
     return winner_players 
 end
 
 function Two_Pairs(hands::Hands)
-    player_scores = zeros(Int64, hands.players, 7)
-    two_pairs_checker = zeros(Int64, hands.players)
-    for player in 1:hands.players
+    #& This cannot solve our problem. The size is sometimes one where we want to access player two. We need to keep 
+    player_scores = zeros(Int, maximum(hands.players), 7)
+    two_pairs_checker = zeros(Int, maximum(hands.players))
+    for player in hands.players
         first_pair = 1
         for card in 1:hands.cards
             if card != 1 && hands.sorted[player, card] == hands.sorted[player, card - 1]
@@ -190,7 +208,7 @@ function Two_Pairs(hands::Hands)
         end    
     end
     sorted_scores = sort(player_scores, dims = 2, rev = true)
-    for player in 1:hands.players
+    for player in hands.players
         pair_count = 0
         first_card_of_pair = 0
         for card in setdiff!(collect(1:hands.cards), 7)
@@ -204,19 +222,20 @@ function Two_Pairs(hands::Hands)
             sorted_scores[player,first_card_of_pair + 1] = sorted_scores[player, first_card_of_pair + 1]/15
         end
     end
-    summed_scores = sum(sorted_scores[:,1:5], dims = 2)
-    vector_summed_scores = []
-    for player in 1:hands.players
-        push!(vector_summed_scores, summed_scores[player])
+    summed_score = sum(sorted_scores[:,1:5], dims = 2)
+    vector_summed_score = zeros(Int, maximum(hands.players))
+    for player in hands.players
+        vector_summed_score[player] = summed_score[player, 1]
     end
-    best_hand = findmax(vector_summed_scores)[1]
-    player_winners = findall(x->x == best_hand, vector_summed_scores)
+    best_hand = findmax(vector_summed_score)[1]
+    player_winners = findall(x->x == best_hand, vector_summed_score)
+
     return player_winners
 end
 
 function Three_Kind(hands::Hands)
-    player_scores = zeros(Int64, hands.players, hands.cards)
-    for player in 1:hands.players
+    player_scores = zeros(Int, maximum(hands.players), hands.cards)
+    for player in hands.players
         three_kind = 0
         card = 1
         while card <= hands.cards 
@@ -233,19 +252,20 @@ function Three_Kind(hands::Hands)
         end
     end
     sorted_scores = sort(player_scores, dims = 2, rev = true)
-    summed_scores = sum(sorted_scores[:,1:5], dims = 2)
-    vector_summed_scores = []
-    for player in 1:hands.players
-        push!(vector_summed_scores, summed_scores[player])
+    summed_score = sum(sorted_scores[:,1:5], dims = 2)
+    vector_summed_score = zeros(Int, maximum(hands.players))
+    for player in hands.players
+        vector_summed_score[player] = summed_score[player, 1]
     end
-    best_hand = findmax(vector_summed_scores)[1]
-    player_winners = findall(x->x == best_hand, vector_summed_scores)
+    best_hand = findmax(vector_summed_score)[1]
+    player_winners = findall(x->x == best_hand, vector_summed_score)
+
     return player_winners
 end
 
 function Straight(hands::Hands)
-    player_scores = zeros(Int64, hands.players)
-    for player in 1:hands.players
+    player_scores = zeros(Int, maximum(hands.players))
+    for player in hands.players
         count = 1
         ace_updated_hand = copy(hands.sorted[player, :])
         if 13 in ace_updated_hand
@@ -264,12 +284,14 @@ function Straight(hands::Hands)
     end
     best_hand = findmax(player_scores)[1]
     player_winners = findall(x -> x == best_hand, player_scores)
+    println(@__LINE__, "  " , player_winners)
+
     return player_winners
 end
 
 function Flush(hands::Hands)
-    player_scores_with_suits = zeros(Int64, hands.players, hands.cards, 4)
-    for player in 1:hands.players
+    player_scores_with_suits = zeros(Int, maximum(hands.players), hands.cards, 4)
+    for player in hands.players
         for card in 1:hands.cards
             if hands.hands[player, card] <= 13
                 player_scores_with_suits[player, card, 1] = Card_To_Kind(hands.hands[player, card])
@@ -282,7 +304,7 @@ function Flush(hands::Hands)
             end
         end
     end
-    for player in 1:hands.players
+    for player in hands.players
         for suit = 1:4
             if sum(player_scores_with_suits[player, :, suit] .> 0.5 ) >= 5
                 player_scores_with_suits[player, :, suit] = 20 * player_scores_with_suits[player, :, suit]
@@ -291,8 +313,8 @@ function Flush(hands::Hands)
         end
     end
     sorted_scores_with_suits = sort(player_scores_with_suits, dims = 2, rev = true)
-    weighted_player_scores_with_suits = zeros(Int64, size(sorted_scores_with_suits)[1], size(sorted_scores_with_suits)[2], size(sorted_scores_with_suits)[3])
-    for player in 1:hands.players 
+    weighted_player_scores_with_suits = zeros(Int, size(sorted_scores_with_suits)[1], size(sorted_scores_with_suits)[2], size(sorted_scores_with_suits)[3])
+    for player in hands.players 
         for card in 1:hands.cards
             for suit = 1:4
                 weighted_player_scores_with_suits[player, card, suit] = hands.weights[card]*sorted_scores_with_suits[player, card, suit]
@@ -302,13 +324,13 @@ function Flush(hands::Hands)
     player_scores = sum(weighted_player_scores_with_suits[:, card, suit] for card = 1:5 for suit = 1:4)
     best_hand = findmax(player_scores)[1]
     player_winners = findall(x->x == best_hand, player_scores)
+
     return player_winners 
 end
 
 function Full_House(hands::Hands)
-    #& I am quite sure that this can be done differently and much faster.
-    player_score = zeros(Int64, hands.players)
-    for player in 1:hands.players
+    player_score = zeros(Int, maximum(hands.players))
+    for player in hands.players
         hand_for_a_given_player = hands.sorted[player, :]
         first_time_three_kinds = 1
         first_time_two_kinds = 1
@@ -327,20 +349,16 @@ function Full_House(hands::Hands)
             end
         end
     end
-    best_hand = findmax(player_score)[1]
-    player_winners = findall(x->x == best_hand, player_score)
-    winners = []
-    for i = eachindex(player_winners)
-        push!(winners, player_winners[i][1])    
-    end
-    return winners
+    best_hand = maximum(player_score)
+    player_winners = findall(x -> x == best_hand, player_score)
+    return player_winners
 end
 
 function Four_Kind(hands::Hands)
     card_weight = [225, 15, 1]
     four_of_a_kind_checker = 0
-    player_score = zeros(Int64, hands.players, hands.cards)
-    for player in 1:hands.players
+    player_score = zeros(Int, maximum(hands.players), hands.cards)
+    for player in hands.players
         for i = 1:13
             find_n_kinds = findall(x->x == i, hands.sorted[player, :])
             if length(find_n_kinds) ==  4
@@ -352,20 +370,17 @@ function Four_Kind(hands::Hands)
         end
     end
     sorted_player_scores = sort(player_score, dims = 2, rev = true)
-    summed_player_scores = sum(sorted_player_scores[:,1:5], dims = 2)
-    best_hand = findmax(summed_player_scores)[1]
+    summed_player_scores = vec(sum(sorted_player_scores[:,1:5], dims = 2))
+    best_hand = maximum(summed_player_scores)
     player_winners = findall(x->x == best_hand, summed_player_scores)
-    winners = []
-    for i = eachindex(player_winners)
-        push!(winners, player_winners[i][1])    
-    end
-    return winners
+
+    return player_winners
 end
 
 function Straight_Flush(hands::Hands)  
     add_to_each_card = [0, 1, 2, 3, 4, 5, 6]
-    player_score = zeros(Int64, hands.players)
-    for player in 1:hands.players
+    player_score = zeros(Int, maximum(hands.players))
+    for player in hands.players
         player_hand_original = hands.hands[player, :]
         flush, suit, indices = Check_Flush_Calculator(player_hand_original) 
         if flush
@@ -385,6 +400,7 @@ function Straight_Flush(hands::Hands)
     end
     best_hand = findmax(player_score)[1]
     player_winners = findall(x->x == best_hand, player_score)
+    println(@__LINE__, "  " , player_winners)
     return player_winners
 end
 

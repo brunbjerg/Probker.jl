@@ -1,5 +1,4 @@
 using Test
-using Coverage
 using Random
 using StatsBase
 using Probker
@@ -12,22 +11,41 @@ revise(Probker)
 #TODO###################################################
 #TODO######               TODO               ###########
 #TODO###################################################
- 
-    #TODO Test straight flush throughly
-    #TODO Test straight throughly
-    #TODO Make probability fold
-    #TODO change the whole implementation to single array based
+
+#TODO Test straight flush throughly
+#TODO Test straight throughly
+#TODO Make probability fold
+#TODO change the whole implementation to single array based
+
+
 ########################################################
 ##########              PROFILING             ##########
 ########################################################
 Profile.clear()
-@profile Simulate(Game(2, [0,0,0,0,0,0,0,0,0], 100000))
+@profile Simulate(Game(2, [0, 0, 0, 0, 0, 0, 0, 0, 0], 100000))
 pprof()
 
 @testset "Simulate_Hidden_Cards " begin
     test_game_flop = Game(8, [13, 14, 15, 1, 37, 32, 21, 22, 23, 27, 28, 20, 43, 49, 0, 0, 51, 52, 26, 47, 41], 10000)
     @test Card_Duplication(Sample(test_game_flop)) == false broken = true
 end
+
+#& I think it would be beneficial to make players a Vector. Then when a player has folded we can just loop over the players that are in the game. Yes! Let us 
+#& do that.
+
+@testset "Check that folded hands never win" begin
+    test_game_fold =  Game(2, [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, -1, -1], 100000)
+    @test Simulate(test_game_fold)[1][2] == 0.0
+    test_game_fold =  Game(2, [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, -1, -1], 100000)
+    @test Simulate(test_game_fold)[1][2] == 0.0
+    test_game_fold =  Game(2, [0, 0, 0, 0, 0, 0, 0, 0, 0], [-1, -1, 0, 0], 100000)
+    @test Simulate(test_game_fold)[1][2] == 1.0
+    test_game_fold =  Game(2, [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0], 100000)
+    @test Simulate(test_game_fold)[1][2] == 1.0
+end
+
+#& Hmm... There is a different problem here! How can the first player win when he was folded?
+
 
 @testset "Test Checker_Hands" begin
     # royal flush vs four kind

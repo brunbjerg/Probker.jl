@@ -1,10 +1,4 @@
-function Array_Hand()
-
-end
-
-
-
-function Cards_To_Hands(player_cards, shared_cards)
+function Cards_To_Hands(player_cards, shared_cards, folded_cards)
     hands = zeros(Int64, length(player_cards) ÷ 2, 7)
     for player = 1:length(player_cards) ÷ 2
         for card = 1:7
@@ -15,20 +9,5 @@ function Cards_To_Hands(player_cards, shared_cards)
             end
         end
     end
-    return Hands(hands)
+    return Hands(hands, folded_cards)
 end
-
-
-
-############################################
-#####     Examine_Hands functions      #####
-############################################
-
-# function Examine_Hands(hands::Hands)
-#     for i in eachindex(hands.hands) 
-
-# end
-
-# function Examine_Hands(player_cards::Vector{Int}, shared_cards::Vector{Int})
-
-# end
