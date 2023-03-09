@@ -11,3 +11,15 @@ function Cards_To_Hands(player_cards, shared_cards, folded_cards)
     end
     return Hands(hands, folded_cards)
 end
+
+function five_in_suit(hand)
+    a = 0
+    for i = 1:4
+        a = searchsortedfirst(hand, 13 * i) - a
+        a == 4 && return false
+        13 * i in hand ? c = 5 : c = 6
+        a >= c && return true
+    end
+    return false
+end
+

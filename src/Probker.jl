@@ -35,7 +35,9 @@ struct Hands
         return sorted
     end
     weights = [64, 32, 16, 8, 4, 2, 1]
-    Hands(hands, folded) = new([i for i in 1:size(hands, 1) if folded[i * 2 - 1] != -1], size(hands, 2), hands, Create_Mod_Hands(hands), weights)
+    #& The problem is here is the only minus one counts as folded where everything except zero is a 
+    #& fold
+    Hands(hands, folded) = new([i for i in 1:size(hands, 1) if folded[i * 2 - 1] == 0], size(hands, 2), sort(hands, dims = 2), Create_Mod_Hands(hands), weights)
 end
 
 #########################################################
@@ -57,6 +59,16 @@ export High_Card,
        Four_Kind, 
        Straight_Flush
 
+export  Check_High_Card, 
+        Check_Two_Kind, 
+        Check_Two_Pairs, 
+        Check_Three_Kind, 
+        Check_Straight, 
+        Check_Flush, 
+        Check_Full_House, 
+        Check_Four_Kind, 
+        Check_Straight_Flush
+
 export Cards_To_Hands
 export Game
 export Hands
@@ -73,34 +85,32 @@ include("Checker_Functions.jl")
 #########################################################
 
 function Simulate(game::Game)
-    #& Here we have to change the function so that no matter what 
-    #& we will get a player that has folded cannot win.
-
-    #& We have to remove the player from the calculations before it goes to the 
-    #& checker. The question is whether the code can handle a single player.
-    #& I do not think that should be a problem. If it is we will take that
-    #& later. The folded cards have already been removed.
-
     wins_by_player = zeros(Int, game.players)
     split_by_player = zeros(Float64, game.players)
     which_hands = zeros(Int, game.players, 9)
     for _ = 1:game.simulations
         hands = Sample(game::Game)
         player_winners, player_hand = Hands_Checker(hands)
+        # @debug player_winners == [1] || length(player_winners) >= 2 && println(@__LINE__, " player hand " , player_hand)
+        
         if length(player_winners) == 1
             wins_by_player[player_winners] .+= 1
             which_hands[player_winners, player_hand] .+= 1
-        else
+        elseif length(player_winners) >= 2
             players_in_split = 1/length(player_winners)
             split_by_player[player_winners] .+= players_in_split
             which_hands[player_winners, player_hand] .+= 1
+        elseif length(player_winners) == 0
+            break
+        else
+            throw(ErrorException)
         end
     end
     return wins_by_player/game.simulations, split_by_player/game.simulations, which_hands
 end
 
+#& This function can be removed by changing the to vector formulation.
 function Sample(game::Game)
-    #& The change should be done in here I think
     j = 0
     sampled_cards = sample(game.pile, game.samples, replace = false)
     cards = copy(game.cards)
@@ -114,6 +124,7 @@ function Sample(game::Game)
 end
 
 function Hands_Checker(hands::Hands)
+    isempty(hands.players)              && return [], 0
     Check_Straight_Flush(hands::Hands)  && return Straight_Flush(hands::Hands), 1
     Check_Four_Kind(hands::Hands)       && return Four_Kind(hands::Hands), 2
     Check_Full_House(hands::Hands)      && return Full_House(hands::Hands), 3
@@ -264,28 +275,20 @@ function Three_Kind(hands::Hands)
 end
 
 function Straight(hands::Hands)
-    player_scores = zeros(Int, maximum(hands.players))
+    scores = zeros(Int, maximum(hands.players))
+
     for player in hands.players
+        sorted = unique(sort(hands.sorted[player, :]))
         count = 1
-        ace_updated_hand = copy(hands.sorted[player, :])
-        if 13 in ace_updated_hand
-            push!(ace_updated_hand, 0)
-        end
-        for card = 1:length(ace_updated_hand) - 1
-            if ace_updated_hand[card] == ace_updated_hand[card + 1] + 1
-                count += 1
-                if count == 5
-                    player_scores[player] = copy(ace_updated_hand[card])
-                end
-            else
-                count = 1
-            end
+        13 in sorted && (sorted = [0; sorted] )
+        for c in 1:length(sorted) - 1
+            sorted[c] == sorted[c + 1] - 1 ? count += 1 : count = 1
+            count >= 5 && (scores[player] = sorted[c + 1])
         end
     end
-    best_hand = findmax(player_scores)[1]
-    player_winners = findall(x -> x == best_hand, player_scores)
-    println(@__LINE__, "  " , player_winners)
-
+    
+    best_hand = maximum(scores)
+    player_winners = findall(x -> x == best_hand, scores)
     return player_winners
 end
 
@@ -356,7 +359,6 @@ end
 
 function Four_Kind(hands::Hands)
     card_weight = [225, 15, 1]
-    four_of_a_kind_checker = 0
     player_score = zeros(Int, maximum(hands.players), hands.cards)
     for player in hands.players
         for i = 1:13
@@ -365,7 +367,6 @@ function Four_Kind(hands::Hands)
                 player_score[player, find_n_kinds] = 10000 * hands.sorted[player, find_n_kinds]
                 remaining_cards = setdiff(1:7, find_n_kinds)
                 player_score[player, remaining_cards] = card_weight .* hands.sorted[player, remaining_cards]
-                four_of_a_kind_checker = 1
             end
         end
     end
@@ -377,30 +378,33 @@ function Four_Kind(hands::Hands)
     return player_winners
 end
 
-function Straight_Flush(hands::Hands)  
-    add_to_each_card = [0, 1, 2, 3, 4, 5, 6]
+function Straight_Flush(hands::Hands)
     player_score = zeros(Int, maximum(hands.players))
     for player in hands.players
-        player_hand_original = hands.hands[player, :]
-        flush, suit, indices = Check_Flush_Calculator(player_hand_original) 
-        if flush
-            sorted_flush_hand = sort(player_hand_original[indices], rev = true)
-            straight_adjusted_hand = add_to_each_card[1:length(indices)] .+ sorted_flush_hand
-            straight_and_Modulus_adjusted_hand = straight_adjusted_hand .% 13
-            straight_and_Modulus_adjusted_hand[straight_and_Modulus_adjusted_hand .== 0] .= 13
-            for i = 1:13
-                values = findall(x->x == i, straight_and_Modulus_adjusted_hand)
-                if length(values) >= 5
-                    straight_flush_checker = 1
-                    player_score[player] = straight_and_Modulus_adjusted_hand[1][1] 
+        for i in 0:3
+            suit = findall(x -> x in 1 + (13 * i):13 + (13 * i), hands.hands[player, :])
+            len_suit = length(suit)
+            if len_suit in [0, 1, 2]
+                continue
+            elseif len_suit in [3, 4]
+                break
+            elseif len_suit in [5, 6, 7]
+                sorted = sort(hands.hands[player, suit])
+                count = 1
+                13 * (i + 1) in sorted && (sorted = [13 * i; sorted])
+                for c in 1:length(sorted) - 1
+                    sorted[c] == sorted[c + 1] - 1 ? count += 1 : count = 1
+                    count >= 5 && (player_score[player] = (sorted[c + 1] - 1) % 13)
                 end
+            else
+                throw(ErrorException)
             end
         end
-
     end
-    best_hand = findmax(player_score)[1]
+
+    best_hand = maximum(player_score)
     player_winners = findall(x->x == best_hand, player_score)
-    println(@__LINE__, "  " , player_winners)
+
     return player_winners
 end
 
