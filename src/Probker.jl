@@ -1,11 +1,45 @@
 module Probker
 
+using StatsBase
+using Random
+using JSON3
+
+function julia_main()::Cint    
+    try
+        while true
+            if isfile("game.json")
+                sleep(0.1)
+                game_json = read("game.json", String)
+                game_dict = JSON3.read(game_json, Dict)
+                result = Simulate(Game(game_dict["players"], game_dict["cards"], game_dict["folded"], game_dict["simulations"]))
+                result = Dict( 
+                    :prob => result[1],
+                    :split => result[2],
+                    :hands => result[3])
+                open("probker_result.json", "w") do io
+                    JSON3.pretty(io, result)
+                    close(io)
+                end
+                rm("game.json")
+            end
+        end
+    catch
+        Base.invokelatest(Base.display_error, Base.catch_stack())
+        return 1 
+    end
+    return 0 
+end
+
+#& What is the goal here?
+    #// & SysImage for OhMyREPL
+    #// & Make Probker executable
+    #& Integrate it into Firebase
+    #& Mobilepay API
+
 #########################################################
 #####                LOAD DEPENDENCIES              #####
 #########################################################
 
-using StatsBase
-using Random
 
 #########################################################
 #####                 DEFINE TYPES                  #####
