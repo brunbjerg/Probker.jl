@@ -1,7 +1,7 @@
 name = "Probker"
 uuid = "d0ae23fd-a9a3-4625-bb1d-fa5e90ff7a39"
 authors = ["Christian Brunbjerg Jespersen <brunbjerg1423@live.dk> and contributors"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
@@ -17,6 +17,6 @@ test = ["Test"]
 
 [compat]
 julia = "1.8"
-JSON3 = "1.9"
+JSON3 = "0.21"
 StatsBase = "0.33, 0.34"
 StructTypes = "1.7"
