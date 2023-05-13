@@ -319,8 +319,7 @@ function Straight(hands::Hands)
             sorted[c] == sorted[c + 1] - 1 ? count += 1 : count = 1
             count >= 5 && (scores[player] = sorted[c + 1])
         end
-    end
-    
+    end  
     best_hand = maximum(scores)
     player_winners = findall(x -> x == best_hand, scores)
     return player_winners
@@ -408,7 +407,6 @@ function Four_Kind(hands::Hands)
     summed_player_scores = vec(sum(sorted_player_scores[:,1:5], dims = 2))
     best_hand = maximum(summed_player_scores)
     player_winners = findall(x->x == best_hand, summed_player_scores)
-
     return player_winners
 end
 
@@ -435,10 +433,8 @@ function Straight_Flush(hands::Hands)
             end
         end
     end
-
     best_hand = maximum(player_score)
     player_winners = findall(x->x == best_hand, player_score)
-
     return player_winners
 end
 
@@ -462,7 +458,5 @@ function Card_To_Kind(card)
     end
     return kind
 end
-
-
 
 end # module

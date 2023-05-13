@@ -17,6 +17,6 @@ test = ["Test"]
 
 [compat]
 julia = "1.8"
-JSON3 = "0.21"
+JSON3 = "1.12"
 StatsBase = "0.33, 0.34"
 StructTypes = "1.7"
